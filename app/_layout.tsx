@@ -40,14 +40,20 @@ function SessionGate() {
 
       setSession(session);
       setCheckingSession(false);
+
+      console.log("INITIAL SESSION:", session);
     };
 
     loadSession();
 
     const {
       data: { subscription },
-    } = supabaseConfig.auth.onAuthStateChange((_event, session) => {
+    } = supabaseConfig.auth.onAuthStateChange((event, session) => {
+      console.log("AUTH EVENT:", event);
+      console.log("AUTH SESSION:", session);
+    
       if (!isMounted) return;
+    
       setSession(session);
     });
 
@@ -58,6 +64,12 @@ function SessionGate() {
   }, []);
 
   useEffect(() => {
+    console.log("ROUTE GUARD:", {
+      session,
+      checkingSession,
+      segments,
+      rootKey: rootNavigationState?.key,
+    });
     if (!rootNavigationState?.key || checkingSession) {
       return;
     }

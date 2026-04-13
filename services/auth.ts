@@ -79,24 +79,27 @@ export const getCurrentUserSession = async () => {
 };
 
 export const logoutAuthUser = async () => {
-    try {
-      const { error } = await supabaseConfig.auth.signOut();
-  
-      if (error) {
-        throw new Error(error.message);
-      }
-  
-      return {
-        success: true,
-        message: 'User logged out successfully.',
-      };
-    } catch (error) {
+  try {
+    const { error } = await supabaseConfig.auth.signOut();
+
+    if (error) {
       return {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : 'An error occurred during logout.',
+        message: error.message,
       };
     }
-  };
+
+    return {
+      success: true,
+      message: "User logged out successfully.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred during logout.",
+    };
+  }
+};

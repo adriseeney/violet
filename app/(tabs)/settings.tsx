@@ -16,60 +16,64 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [showOnline, setShowOnline] = useState(true);
 
+  const runLogout = async () => {
+    const response = await logoutAuthUser();
+
+    if (!response.success) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`Could not sign out: ${response.message}`);
+      } else {
+        Alert.alert('Could not sign out', response.message);
+      }
+      return;
+    }
+
+    router.replace('/(auth)/login');
+  };
+
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    const message = 'Are you sure you want to logout?';
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(message)) {
+        void runLogout();
+      }
+      return;
+    }
+
+    Alert.alert('Logout', message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          void runLogout();
         },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            const response = await logoutAuthUser();
-            console.log('logout response:', response);
-  
-            if (!response.success) {
-              Alert.alert('Logout failed', response.message);
-              return;
-            }
-  
-            Alert.alert('Logged out', 'Supabase sign out succeeded.');
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const response = await logoutAuthUser();
+    const message =
+      'Are you sure you want to delete your account? This action cannot be undone.';
 
-            if (!response.success) {
-              Alert.alert('Action failed', response.message);
-              return;
-            }
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(message)) {
+        void runLogout();
+      }
+      return;
+    }
 
-            router.replace('/(auth)/login');
-          },
+    Alert.alert('Delete Account', message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void runLogout();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const toggleLocationVisibility = () => {
