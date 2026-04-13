@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
+
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
 import { Camera, MapPin, MapPinOff, Edit2, Image as ImageIcon, Plus, Trash2, Settings, Check } from 'lucide-react-native';
 import { ProfileAttribute } from '@/components/ProfileAttribute';
 import * as ImagePicker from 'expo-image-picker';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
+import { useEffect, useState } from 'react';
+import { getCurrentUserProfile } from '@/services/users';
 
 // Mockup profile photos
 const initialPhotos = [
-  "https://randomuser.me/api/portraits/men/32.jpg",
+  "",
 ];
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
   const [profileImage, setProfileImage] = useState<string | null>(initialPhotos[0]);
   const [photos, setPhotos] = useState<string[]>(initialPhotos);
   const [isEditing, setIsEditing] = useState(false);
@@ -25,13 +25,13 @@ export default function ProfileScreen() {
   
   // Profile info with editable fields
   const [profileInfo, setProfileInfo] = useState({
-    name: "Alex", // Default name
+    name: "Micah", // Default name
     age: "28",
     bio: "Just moved to the city, looking to meet new people and have fun!",
-    height: "180",
+    height: "160",
     weight: "75",
-    ethnicity: "Mixed",
-    location: "Downtown",
+    ethnicity: "Black",
+    location: "0.5 m",
   });
 
   const pickImage = async () => {

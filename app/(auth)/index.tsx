@@ -16,12 +16,12 @@ export default function Welcome() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoContainer}>
-            <Text style={[styles.logo, { color: colors.primary }]}>Meetr</Text>
+            <Text style={[styles.logo, { color: colors.primary }]}>xxplore</Text>
           </View>
           
           <View style={styles.titleContainer}>
             <Text style={[styles.title, { color: colors.text }]}>
-              Connect with people nearby
+              
             </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Chat, meet and connect with amazing people around you

@@ -62,7 +62,7 @@ export default function BrowseScreen() {
             data={filteredUsers}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
-            numColumns={2}
+            numColumns={3}
             columnWrapperStyle={styles.row}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}

@@ -4,8 +4,10 @@ import { router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Eye, EyeOff, Check } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
 import { useMockBotMessages } from '@/hooks/useMockBotMessages';
+import { registerAuthUser } from '@/services/auth';
+import { createUserProfile } from '@/services/users';
+import { createUserPreferences } from '@/services/users';
 
 // Gender options
 const genderOptions = ["Male", "Female", "Trans Man", "Trans Woman", "Non-binary", "Gender Fluid People", "Other"];
@@ -15,7 +17,6 @@ const preferenceOptions = ["Men", "Women", "Everyone"];
 
 export default function Signup() {
   const { colors } = useTheme();
-  const { signup } = useAuth();
   const { scheduleWelcomeMessage } = useMockBotMessages();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,28 +31,64 @@ export default function Signup() {
 
   const handleSignup = async () => {
     if (!email || !password || !username || !selectedGender || !selectedPreference) {
-      setError('Please fill in all required fields');
+      setError("Please fill in all required fields");
       return;
     }
-    
+  
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError("Password must be at least 6 characters");
       return;
     }
-    
+  
     setLoading(true);
-    setError('');
-    
+    setError("");
+  
     try {
-      // Including gender and preference in signup
-      const newUserId = await signup(username, email, password, selectedGender, selectedPreference);
-      
-      // Schedule welcome message for new user (will send after 15 minutes)
-      scheduleWelcomeMessage(newUserId || '1');
-      
-      router.replace('/(tabs)');
-    } catch (err) {
-      setError('Error creating account. Please try again.');
+      const authResponse = await registerAuthUser({
+        email,
+        password,
+      });
+  
+      if (!authResponse.success) {
+        setError(authResponse.message);
+        return;
+      }
+  
+      const authUserId = authResponse.data?.user?.id;
+  
+      if (!authUserId) {
+        setError("User account created, but no user ID was returned.");
+        return;
+      }
+  
+      const profileResponse = await createUserProfile({
+        id: authUserId,
+        email,
+        username,
+        display_name: username,
+        gender_identity: selectedGender,
+      });
+  
+      if (!profileResponse.success) {
+        setError(profileResponse.message);
+        return;
+      }
+  
+      const preferencesResponse = await createUserPreferences({
+        user_id: authUserId,
+        sexual_preference: selectedPreference,
+        distance_radius_miles: 25,
+        is_discoverable: true,
+      });
+  
+      if (!preferencesResponse.success) {
+        setError(preferencesResponse.message);
+        return;
+      }
+  
+      router.replace("/(tabs)");
+    } catch (error) {
+      setError("Error creating account. Please try again.");
     } finally {
       setLoading(false);
     }

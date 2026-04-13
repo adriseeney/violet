@@ -47,7 +47,7 @@ export function useMockUsers() {
     const mockUsers: User[] = [];
     
     // Add existing manually crafted users (12 users)
-    mockUsers.push(
+    /*mockUsers.push(
       {
         id: "1",
         username: "Alex",
@@ -232,59 +232,40 @@ export function useMockUsers() {
         intimacyPreferences: ["Casual Dating", "Serious Relationship"],
       }
     );
+    */
     
     // Generate additional 88 users to reach 100 total
     for (let i = 13; i <= 100; i++) {
-      const gender = getRandomItem(GENDERS);
-      
-      // Select name based on gender
-      let username = '';
-      if (gender === 'Male' || gender === 'Trans Man') {
-        username = getRandomItem(MALE_NAMES);
-      } else if (gender === 'Female' || gender === 'Trans Woman') {
-        username = getRandomItem(FEMALE_NAMES);
-      } else {
-        username = getRandomItem(GENDER_NEUTRAL_NAMES);
-      }
-      
-      // Add some uniqueness to names in case of duplicates
+      const gender = getRandomItem(['Female']);
+    
+      // Always use feminine / neutral names
+      let username = getRandomItem([...FEMALE_NAMES, ...GENDER_NEUTRAL_NAMES]);
+    
+      // Add uniqueness sometimes
       if (Math.random() > 0.7) {
         username += Math.floor(Math.random() * 99);
       }
-      
-      // Generate random attributes
-      const age = generateRandomNumber(18, 50);
+    
+      const age = generateRandomNumber(21, 45);
       const distance = generateRandomNumber(1, 30);
-      const isOnline = Math.random() > 0.7;
-      
-      // Create bio with some randomness
+      const isOnline = Math.random() > 0.6;
+    
+      // Bio (same logic, just slightly cleaner tone)
       let bio: string | undefined;
-      if (Math.random() > 0.1) { // 90% of users have bios
+      if (Math.random() > 0.1) {
         const bioTemplates = [
-          `${username} here! ${age} and looking for connections. Love ${getRandomItem(INTERESTS)} and ${getRandomItem(INTERESTS)}.`,
-          `${getRandomItem(['Passionate', 'Enthusiastic', 'Dedicated'])} about ${getRandomItem(INTERESTS)}. Looking for ${getRandomItem(INTIMACY_PREFERENCES).toLowerCase()}.`,
-          `Living in ${getRandomItem(LOCATIONS)}, working as a ${getRandomItem(['designer', 'developer', 'writer', 'artist', 'consultant', 'teacher', 'student', 'chef', 'entrepreneur'])}.`,
-          `${getRandomItem(['Lover of', 'Addicted to', 'Can\'t live without'])} ${getRandomItem(INTERESTS)} and good conversations.`,
-          `${getRandomItem(['New to the city', 'Long-time local', 'Recently moved here'])}, excited to meet new people!`
+          `${username}, ${age}. Into ${getRandomItem(INTERESTS)} & ${getRandomItem(INTERESTS)}.`,
+          `Looking for ${getRandomItem(INTIMACY_PREFERENCES).toLowerCase()}. Love ${getRandomItem(INTERESTS)}.`,
+          `Based in ${getRandomItem(LOCATIONS)}. Always down for ${getRandomItem(INTERESTS)}.`,
+          `${getRandomItem(['Soft energy', 'Playful', 'Chill', 'Curious'])} — let’s connect.`,
         ];
         bio = getRandomItem(bioTemplates);
       }
-      
-      // Gender-specific profile pictures
-      let profilePicture = '';
-      if (gender === 'Male' || gender === 'Trans Man') {
-        const index = generateRandomNumber(1, 90);
-        profilePicture = `https://randomuser.me/api/portraits/men/${index}.jpg`;
-      } else if (gender === 'Female' || gender === 'Trans Woman') {
-        const index = generateRandomNumber(1, 90);
-        profilePicture = `https://randomuser.me/api/portraits/women/${index}.jpg`;
-      } else {
-        // For non-binary and other genders, mix male and female pictures
-        const category = Math.random() > 0.5 ? 'men' : 'women';
-        const index = generateRandomNumber(1, 90);
-        profilePicture = `https://randomuser.me/api/portraits/${category}/${index}.jpg`;
-      }
-      
+    
+      // ALWAYS use women images
+      const index = generateRandomNumber(1, 90);
+      const profilePicture = `https://randomuser.me/api/portraits/women/${index}.jpg`;
+    
       const user: User = {
         id: i.toString(),
         username,
@@ -297,19 +278,18 @@ export function useMockUsers() {
         interests: getRandomItems(INTERESTS, 1, 5),
         lastActive: getRandomItem(LAST_ACTIVE),
         isOnline,
-        sexualPreference: getRandomItem(SEXUAL_PREFERENCES),
+        sexualPreference: 'Women', // 
         sexualRole: getRandomItem(SEXUAL_ROLES),
-        sexualPosition: getRandomItem(SEXUAL_POSITIONS),
         intimacyPreferences: getRandomItems(INTIMACY_PREFERENCES, 1, 3),
         sexStyle: getRandomItem(SEX_STYLES),
         hivStatus: getRandomItem(HIV_STATUSES),
         safetyPractices: getRandomItem(SAFETY_PRACTICES),
         ethnicity: getRandomItem(ETHNICITIES),
-        showPreferencesPublicly: Math.random() > 0.5, // 50% chance of public preferences
-        height: generateRandomNumber(150, 200),
-        weight: generateRandomNumber(50, 100),
+        showPreferencesPublicly: Math.random() > 0.5,
+        height: generateRandomNumber(150, 185),
+        weight: generateRandomNumber(50, 90),
       };
-      
+    
       mockUsers.push(user);
     }
     

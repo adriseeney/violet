@@ -1,22 +1,21 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { 
-  ChevronRight, Bell, Shield, Eye, Moon, MapPin, 
+import { logoutAuthUser } from '@/services/auth';
+import {
+  ChevronRight, Bell, Shield, Eye, Moon, MapPin,
   Trash2, LogOut, HelpCircle, FileText, Heart, Users, Filter
 } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { colors, toggleTheme, isDark } = useTheme();
-  const { logout, currentUser, updateUser } = useAuth();
-  const [showLocation, setShowLocation] = useState(currentUser?.showLocation || false);
+  const [showLocation, setShowLocation] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [showOnline, setShowOnline] = useState(true);
-  
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -29,15 +28,23 @@ export default function SettingsScreen() {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            logout();
-            router.replace('/(auth)');
+          onPress: async () => {
+            const response = await logoutAuthUser();
+            console.log('logout response:', response);
+  
+            if (!response.success) {
+              Alert.alert('Logout failed', response.message);
+              return;
+            }
+  
+            Alert.alert('Logged out', 'Supabase sign out succeeded.');
+            router.replace('/(auth)/login');
           },
         },
       ]
     );
   };
-  
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
@@ -50,51 +57,70 @@ export default function SettingsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            // In a real app, this would call an API to delete the account
-            logout();
-            router.replace('/(auth)');
+          onPress: async () => {
+            const response = await logoutAuthUser();
+
+            if (!response.success) {
+              Alert.alert('Action failed', response.message);
+              return;
+            }
+
+            router.replace('/(auth)/login');
           },
         },
       ]
     );
   };
-  
+
   const toggleLocationVisibility = () => {
     const newValue = !showLocation;
     setShowLocation(newValue);
-    updateUser({ showLocation: newValue });
+  };
+
+  type SettingItemProps = {
+    icon: React.ReactNode;
+    title: string;
+    showChevron?: boolean;
+    onPress?: () => void;
+    rightElement?: React.ReactNode;
+    danger?: boolean;
   };
   
-  const SettingItem = ({ 
-    icon, 
-    title, 
-    showChevron = true, 
+  const SettingItem = ({
+    icon,
+    title,
+    showChevron = true,
     onPress,
     rightElement,
-    danger = false
-  }) => (
-    <TouchableOpacity 
-      style={styles.settingItem} 
-      onPress={onPress}
-      disabled={!onPress && !rightElement}
-    >
-      <View style={styles.settingLeft}>
-        {icon}
-        <Text style={[
-          styles.settingTitle, 
-          { color: danger ? colors.error : colors.text }
-        ]}>
-          {title}
-        </Text>
-      </View>
-      {rightElement ? (
-        rightElement
-      ) : (
-        showChevron && <ChevronRight size={20} color={colors.textSecondary} />
-      )}
-    </TouchableOpacity>
-  );
+    danger = false,
+  }: SettingItemProps) => {
+    return (
+      <TouchableOpacity
+        style={[styles.settingItem, { borderBottomColor: colors.border }]}
+        onPress={onPress}
+        disabled={!onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.settingItemLeft}>
+          {icon}
+          <Text
+            style={[
+              styles.settingItemText,
+              { color: danger ? '#ef4444' : colors.text },
+            ]}
+          >
+            {title}
+          </Text>
+        </View>
+  
+        {rightElement ? (
+          rightElement
+        ) : showChevron ? (
+          <ChevronRight size={20} color={colors.textSecondary} />
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -103,9 +129,9 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         </View>
-        
-        <ScrollView 
-          style={styles.scrollView} 
+
+        <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
@@ -113,15 +139,15 @@ export default function SettingsScreen() {
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               ACCOUNT
             </Text>
-            
+
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>
-              <SettingItem 
+              <SettingItem
                 icon={<Shield size={22} color={colors.primary} />}
                 title="Privacy"
-                onPress={() => {}}
+                onPress={() => { }}
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<MapPin size={22} color={colors.primary} />}
                 title="Location"
                 rightElement={
@@ -134,8 +160,8 @@ export default function SettingsScreen() {
                   />
                 }
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<Bell size={22} color={colors.primary} />}
                 title="Notifications"
                 rightElement={
@@ -156,27 +182,27 @@ export default function SettingsScreen() {
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               DATING PREFERENCES
             </Text>
-            
+
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>
-              <SettingItem 
+              <SettingItem
                 icon={<Heart size={22} color={colors.primary} />}
                 title="I'm interested in"
                 onPress={() => router.push('/preferences/interests')}
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<Users size={22} color={colors.primary} />}
                 title="Sexual preferences"
                 onPress={() => router.push('/preferences/sexual')}
               />
 
-              <SettingItem 
+              <SettingItem
                 icon={<Filter size={22} color={colors.primary} />}
                 title="Filtering options"
                 onPress={() => router.push('/preferences/filtering')}
               />
 
-              <SettingItem 
+              <SettingItem
                 icon={<Eye size={22} color={colors.primary} />}
                 title="Show me online"
                 rightElement={
@@ -191,14 +217,14 @@ export default function SettingsScreen() {
               />
             </View>
           </View>
-          
+
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               PREFERENCES
             </Text>
-            
+
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>
-              <SettingItem 
+              <SettingItem
                 icon={<Moon size={22} color={colors.primary} />}
                 title="Dark Mode"
                 rightElement={
@@ -211,50 +237,50 @@ export default function SettingsScreen() {
                   />
                 }
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<Eye size={22} color={colors.primary} />}
                 title="Appearance"
-                onPress={() => {}}
+                onPress={() => { }}
               />
             </View>
           </View>
-          
+
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               SUPPORT
             </Text>
-            
+
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>
-              <SettingItem 
+              <SettingItem
                 icon={<HelpCircle size={22} color={colors.primary} />}
                 title="Help Center"
-                onPress={() => {}}
+                onPress={() => { }}
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<FileText size={22} color={colors.primary} />}
                 title="Terms of Service"
-                onPress={() => {}}
+                onPress={() => { }}
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<FileText size={22} color={colors.primary} />}
                 title="Privacy Policy"
-                onPress={() => {}}
+                onPress={() => { }}
               />
             </View>
           </View>
-          
+
           <View style={styles.section}>
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>
-              <SettingItem 
+              <SettingItem
                 icon={<LogOut size={22} color={colors.warning} />}
                 title="Logout"
                 onPress={handleLogout}
               />
-              
-              <SettingItem 
+
+              <SettingItem
                 icon={<Trash2 size={22} color={colors.error} />}
                 title="Delete Account"
                 danger
@@ -262,7 +288,7 @@ export default function SettingsScreen() {
               />
             </View>
           </View>
-          
+
           <Text style={[styles.versionText, { color: colors.textTertiary }]}>
             Version 1.0.0
           </Text>

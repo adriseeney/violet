@@ -4,11 +4,11 @@ import { router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import { loginAuthUser } from '@/services/auth';
+
 
 export default function Login() {
   const { colors } = useTheme();
-  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,18 +17,27 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError('Please enter your email and password');
       return;
     }
-    
+  
     setLoading(true);
     setError('');
-    
+  
     try {
-      await login(email, password);
+      const response = await loginAuthUser({
+        email,
+        password,
+      });
+  
+      if (!response.success) {
+        setError(response.message);
+        return;
+      }
+  
       router.replace('/(tabs)');
-    } catch (err) {
-      setError('Invalid email or password');
+    } catch (error) {
+      setError('Error logging in. Please try again.');
     } finally {
       setLoading(false);
     }
