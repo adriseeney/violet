@@ -63,9 +63,8 @@ function SessionGate() {
     }
 
     const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (session && !inTabsGroup) {
+    if (session && inAuthGroup) {
       router.replace('/(tabs)');
     } else if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
