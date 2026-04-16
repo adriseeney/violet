@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, MessageCircle, MapPin, X, Lock, Image as ImageIcon, ChevronRight } from 'lucide-react-native';
 import { useMockUsers } from '@/hooks/useMockUsers';
+import { formatDistanceMiles } from '@/utils/formatDistance';
 import { User } from '@/types/user';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
 
@@ -139,7 +140,7 @@ export default function UserProfileScreen() {
                 <View style={styles.locationContainer}>
                   <MapPin size={14} color={colors.textSecondary} />
                   <Text style={[styles.locationText, { color: colors.textSecondary }]}>
-                    {user.location} • {user.distance} km away
+                    {user.location} • {formatDistanceMiles(user.distance)} away
                   </Text>
                 </View>
               )}

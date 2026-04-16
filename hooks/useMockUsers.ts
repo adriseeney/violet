@@ -6,6 +6,12 @@ const generateRandomNumber = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
+/** Random distance in miles, one decimal, roughly 0.2–18 mi */
+const randomDistanceMiles = () => {
+  const raw = 0.2 + Math.random() * 17.8;
+  return Math.round(raw * 10) / 10;
+};
+
 const getRandomItem = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
 };
@@ -247,7 +253,7 @@ export function useMockUsers() {
       }
     
       const age = generateRandomNumber(21, 45);
-      const distance = generateRandomNumber(1, 30);
+      const distance = randomDistanceMiles();
       const isOnline = Math.random() > 0.6;
     
       // Bio (same logic, just slightly cleaner tone)

@@ -25,6 +25,15 @@ export interface IUserPreferencesPayload {
   is_discoverable?: boolean;
 }
 
+export interface INearbyProfile {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  bio?: string | null;
+  profile_picture_url?: string | null;
+  distance_miles?: number | null;
+}
+
 export const createUserProfile = async (payload: IUserProfilePayload) => {
   try {
     const { data, error } = await supabaseConfig
@@ -136,5 +145,94 @@ export const getCurrentUserProfile = async () => {
     return data;
   } catch {
     return null;
+  }
+};
+
+export const updateCurrentUserLocation = async (
+  latitude: number,
+  longitude: number
+) => {
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseConfig.auth.getSession();
+
+    if (sessionError) {
+      throw new Error(sessionError.message);
+    }
+
+    if (!session?.user?.id) {
+      throw new Error("No authenticated user found.");
+    }
+
+    const { data, error } = await supabaseConfig.rpc("update_user_location", {
+      current_user_id: session.user.id,
+      user_lat: latitude,
+      user_lng: longitude,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      success: true,
+      message: "User location updated successfully.",
+      data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while updating location.",
+    };
+  }
+};
+
+export const getNearbyProfiles = async (
+  latitude: number,
+  longitude: number
+) => {
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseConfig.auth.getSession();
+
+    if (sessionError) {
+      throw new Error(sessionError.message);
+    }
+
+    if (!session?.user?.id) {
+      throw new Error("No authenticated user found.");
+    }
+
+    const { data, error } = await supabaseConfig.rpc("nearby_profiles", {
+      user_lat: latitude,
+      user_lng: longitude,
+      current_user_id: session.user.id,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      success: true,
+      message: "Nearby profiles loaded successfully.",
+      data: (data ?? []) as INearbyProfile[],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while fetching nearby profiles.",
+      data: [] as INearbyProfile[],
+    };
   }
 };

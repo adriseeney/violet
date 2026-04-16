@@ -282,12 +282,12 @@ export default function ProfileScreen() {
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Height</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>{profileInfo.height} cm</Text>
             </View>
-            <View style={styles.detailDivider} />
+            <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
             <View style={styles.detailItem}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Weight</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>{profileInfo.weight} kg</Text>
             </View>
-            <View style={styles.detailDivider} />
+            <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
             <View style={styles.detailItem}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Ethnicity</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>{profileInfo.ethnicity}</Text>
@@ -484,7 +484,6 @@ const styles = StyleSheet.create({
   detailDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#e0e0e0',
   },
   locationContainer: {
     marginTop: 8,

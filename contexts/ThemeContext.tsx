@@ -1,46 +1,51 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-// Define the theme colors
+const darkTheme = {
+  primary: '#7C3AED',
+  primaryDark: '#5B21B6',
+  accent: '#A78BFA',
+  background: '#0B0B0F',
+  /** Slightly lifted surface for gradients / layered UI */
+  backgroundMuted: '#14141C',
+  card: '#16161D',
+  cardBackground: '#16161D',
+  text: '#FFFFFF',
+  textSecondary: '#B3B3C2',
+  border: '#2A2A35',
+  tabBarBackground: '#16161D',
+  success: '#4CAF50',
+  /** Android `Switch` track when on */
+  primaryTransparent: '#7C3AED80',
+};
+
 const lightTheme = {
-  primary: '#FE3C72',
-  background: '#FFFFFF',
-  card: '#F5F5F5',
-  cardBackground: '#F5F5F5',
-  text: '#000000',
-  textSecondary: '#666666',
-  border: '#E0E0E0',
+  primary: '#7C3AED',
+  primaryDark: '#5B21B6',
+  accent: '#A78BFA',
+  background: '#F5F5F9',
+  backgroundMuted: '#FFFFFF',
+  card: '#FFFFFF',
+  cardBackground: '#FFFFFF',
+  text: '#0B0B0F',
+  textSecondary: '#5C5C6E',
+  border: '#D8D8E4',
   tabBarBackground: '#FFFFFF',
   success: '#4CAF50',
+  primaryTransparent: '#7C3AED80',
 };
 
-const darkTheme = {
-  primary: '#FE3C72',
-  background: '#121212',
-  card: '#1E1E1E',
-  cardBackground: '#1E1E1E',
-  text: '#FFFFFF',
-  textSecondary: '#AAAAAA',
-  border: '#333333',
-  tabBarBackground: '#1A1A1A',
-  success: '#4CAF50',
-};
-
-// Theme context type
 type ThemeContextType = {
   isDark: boolean;
   toggleTheme: () => void;
   colors: typeof darkTheme;
 };
 
-// Create the context
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-// Theme provider props
 type ThemeProviderProps = {
   children: ReactNode;
 };
 
-// Theme provider component
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const [isDark, setIsDark] = useState(true);
 
@@ -57,13 +62,12 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   );
 };
 
-// Custom hook to use the theme context
 export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
-  
+
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
-  
+
   return context;
-}; 
+};

@@ -5,6 +5,7 @@ import { useMockChatMessages } from './useMockChatMessages';
 import { Message } from '@/types/message';
 import { Chat } from '@/types/chat';
 import { User } from '@/types/user';
+import { formatDistanceMiles } from '@/utils/formatDistance';
 
 // Helper functions
 const getRandomItem = <T>(array: T[]): T => {
@@ -122,7 +123,7 @@ const FOLLOW_UP_MESSAGES = [
   "I'm really into {interest} too! Any recommendations?",
   "How long have you lived in {location}?",
   "What's your favorite thing about {location}?",
-  "I see you're {distance} km away. Do you know any good spots in that area?",
+  "I see you're {distance} away. Do you know any good spots in that area?",
   "Would you like to get together sometime for {interest}?",
   "How's your experience been on this app so far?"
 ];
@@ -369,7 +370,10 @@ export function useMockBotMessages() {
             message = message.replace("{location}", receiver.location);
           }
           
-          message = message.replace("{distance}", receiver.distance.toString());
+          message = message.replace(
+            "{distance}",
+            formatDistanceMiles(receiver.distance)
+          );
         } else {
           message = getFallbackResponse(lastMessage.content);
         }

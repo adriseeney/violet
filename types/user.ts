@@ -3,6 +3,7 @@ export interface User {
   username: string;
   age: number;
   gender: string;
+  /** Distance from the viewer in miles */
   distance: number;
   bio?: string;
   profilePicture: string;

@@ -17,6 +17,8 @@ import {
 } from '@expo-google-fonts/inter';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { supabaseConfig } from '@/config/supabase-config';
+import { LocationProvider } from '@/contexts/location-context';
+
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -103,7 +105,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <SessionGate />
+      <LocationProvider>
+        <SessionGate />
+      </LocationProvider>
       <StatusBar style="light" />
     </ThemeProvider>
   );

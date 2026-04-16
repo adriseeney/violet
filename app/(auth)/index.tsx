@@ -10,7 +10,7 @@ export default function Welcome() {
 
   return (
     <LinearGradient
-      colors={['#1a1a1a', '#121212']}
+      colors={[colors.backgroundMuted, colors.background]}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>

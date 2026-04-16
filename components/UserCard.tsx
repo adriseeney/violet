@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Pressable, Alert } fro
 import { MoreVertical, MessageCircle, Star, X } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
+import { formatDistanceMiles } from '@/utils/formatDistance';
 
 interface UserCardProps {
   user: {
@@ -96,7 +97,12 @@ export default function UserCard({ user, onPress }: UserCardProps) {
 
         {/* ACTION MENU */}
         {showActions && (
-          <View style={styles.actionsMenu}>
+          <View
+            style={[
+              styles.actionsMenu,
+              { backgroundColor: colors.cardBackground, borderColor: colors.border },
+            ]}
+          >
             <TouchableOpacity onPress={handleFavorite} style={styles.actionItem}>
               <Star size={14} color={colors.text} />
               <Text style={[styles.actionText, { color: colors.text }]}>Favorite</Text>
@@ -111,13 +117,13 @@ export default function UserCard({ user, onPress }: UserCardProps) {
       </View>
 
       {/* FOOTER*/}
-      <View style={styles.footer}>
-        <Text style={styles.name}>
+      <View style={[styles.footer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.name, { color: colors.text }]}>
           {user.username}
         </Text>
 
-        <Text style={styles.distanceText}>
-          {user.distance} ft
+        <Text style={[styles.distanceText, { color: colors.textSecondary }]}>
+          {formatDistanceMiles(user.distance)}
         </Text>
       </View>
     </Pressable>
@@ -180,7 +186,11 @@ const styles = StyleSheet.create({
 
   footer: {
     padding: 6,
-    backgroundColor: '#f5f5f5',
+  },
+
+  name: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   distanceText: {
@@ -191,7 +201,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 30,
     right: 6,
-    backgroundColor: 'white',
+    borderWidth: 1,
     borderRadius: 8,
     padding: 6,
     elevation: 5,
