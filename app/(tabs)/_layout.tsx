@@ -33,6 +33,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* hide explore tab for now 
       <Tabs.Screen
         name="explore"
         options={{
@@ -41,7 +42,7 @@ export default function TabLayout() {
             <Compass size={size} color={color} />
           ),
         }}
-      />
+      />*/}
       <Tabs.Screen
         name="chats"
         options={{

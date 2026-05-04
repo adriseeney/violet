@@ -9,11 +9,7 @@ import { registerAuthUser } from '@/services/auth';
 import { createUserProfile } from '@/services/users';
 import { createUserPreferences } from '@/services/users';
 
-// Gender options
-const genderOptions = ["Male", "Female", "Trans Man", "Trans Woman", "Non-binary", "Gender Fluid People", "Other"];
 
-// Sexual preferences options
-const preferenceOptions = ["Men", "Women", "Everyone"];
 
 export default function Signup() {
   const { colors } = useTheme();
@@ -25,12 +21,10 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // New state for gender and preferences
-  const [selectedGender, setSelectedGender] = useState('');
-  const [selectedPreference, setSelectedPreference] = useState('');
+
 
   const handleSignup = async () => {
-    if (!email || !password || !username || !selectedGender || !selectedPreference) {
+    if (!email || !password || !username ) {
       setError("Please fill in all required fields");
       return;
     }
@@ -66,7 +60,6 @@ export default function Signup() {
         email,
         username,
         display_name: username,
-        gender_identity: selectedGender,
       });
   
       if (!profileResponse.success) {
@@ -76,7 +69,6 @@ export default function Signup() {
   
       const preferencesResponse = await createUserPreferences({
         user_id: authUserId,
-        sexual_preference: selectedPreference,
         distance_radius_miles: 25,
         is_discoverable: true,
       });
@@ -129,7 +121,7 @@ export default function Signup() {
         >
           <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Fill in your details to get started
+            
           </Text>
 
           {error ? (
@@ -137,24 +129,7 @@ export default function Signup() {
           ) : null}
           
           <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Username</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { 
-                    backgroundColor: colors.cardBackground,
-                    color: colors.text,
-                    borderColor: colors.border
-                  }
-                ]}
-                placeholder="Choose a username"
-                placeholderTextColor={colors.textSecondary}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-            </View>
+            
             
             <View style={styles.inputContainer}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
@@ -210,63 +185,7 @@ export default function Signup() {
               </Text>
             </View>
 
-            {/* Gender Selection */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>I am a</Text>
-              <View style={styles.optionsContainer}>
-                {genderOptions.map((gender) => (
-                  <TouchableOpacity
-                    key={gender}
-                    style={[
-                      styles.optionButton,
-                      { 
-                        backgroundColor: selectedGender === gender ? colors.primary : colors.cardBackground,
-                        borderColor: colors.border
-                      }
-                    ]}
-                    onPress={() => setSelectedGender(gender)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        { color: selectedGender === gender ? '#ffffff' : colors.text }
-                      ]}
-                    >
-                      {gender}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Sexual Preference Selection */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>I'm interested in</Text>
-              <View style={styles.optionsContainer}>
-                {preferenceOptions.map((preference) => (
-                  <TouchableOpacity
-                    key={preference}
-                    style={[
-                      styles.optionButton,
-                      { 
-                        backgroundColor: selectedPreference === preference ? colors.primary : colors.cardBackground,
-                        borderColor: colors.border
-                      }
-                    ]}
-                    onPress={() => setSelectedPreference(preference)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        { color: selectedPreference === preference ? '#ffffff' : colors.text }
-                      ]}
-                    >
-                      {preference}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            
             
             <Pressable
               style={[styles.button, { backgroundColor: colors.primary }]}

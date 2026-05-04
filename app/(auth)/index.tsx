@@ -16,7 +16,7 @@ export default function Welcome() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoContainer}>
-            <Text style={[styles.logo, { color: colors.primary }]}>xxplore</Text>
+            <Text style={[styles.logo, { color: colors.primary }]}>Violet</Text>
           </View>
           
           <View style={styles.titleContainer}>
@@ -24,7 +24,7 @@ export default function Welcome() {
               
             </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Chat, meet and connect with amazing people around you
+              Chat, meet and connect with women near you
             </Text>
           </View>
           

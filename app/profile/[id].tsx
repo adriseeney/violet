@@ -5,46 +5,93 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, MessageCircle, MapPin, X, Lock, Image as ImageIcon, ChevronRight } from 'lucide-react-native';
-import { useMockUsers } from '@/hooks/useMockUsers';
 import { formatDistanceMiles } from '@/utils/formatDistance';
 import { User } from '@/types/user';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
+import { getOrCreateDm } from '@/services/chat';
+import { supabaseConfig } from '@/config/supabase-config';
+import { getProfileById } from '@/services/users';
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams();
+  const profileId = Array.isArray(id) ? id[0] : id;
   const { colors } = useTheme();
-  const { users, loading } = useMockUsers();
   const [user, setUser] = useState<User | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [photoGalleryVisible, setPhotoGalleryVisible] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const screenWidth = Dimensions.get('window').width;
-  
-  // Mock photos array - in a real app, this would come from the user object
+
   const [userPhotos, setUserPhotos] = useState<string[]>([]);
+  const [openingChat, setOpeningChat] = useState(false);
 
   useEffect(() => {
-    if (users.length > 0 && id) {
-      const foundUser = users.find(u => u.id === id);
-      if (foundUser) {
-        setUser(foundUser);
-        
-        // Set mock photos for the gallery
-        const mockPhotos = [
-          foundUser.profilePicture,
-          "https://randomuser.me/api/portraits/men/33.jpg",
-          "https://randomuser.me/api/portraits/men/34.jpg",
-          "https://randomuser.me/api/portraits/men/35.jpg",
-          "https://randomuser.me/api/portraits/men/36.jpg"
-        ];
-        setUserPhotos(mockPhotos);
-      }
+    if (!profileId || typeof profileId !== 'string') {
+      setLoadError('Missing profile.');
+      setProfileLoading(false);
+      return;
     }
-  }, [users, id]);
 
-  const handleMessage = () => {
-    if (user) {
-      // Navigate to chat with this user
-      router.push(`/chat/${user.id}`);
+    let cancelled = false;
+
+    void (async () => {
+      setProfileLoading(true);
+      setLoadError(null);
+
+      const res = await getProfileById(profileId);
+      if (cancelled) return;
+
+      if (!res.success || !res.user) {
+        setUser(null);
+        setLoadError(res.message ?? 'Could not load profile.');
+        setUserPhotos([]);
+        setProfileLoading(false);
+        return;
+      }
+
+      setUser(res.user);
+
+      const { data, error } = await supabaseConfig
+        .from('user_photos')
+        .select('*')
+        .eq('user_id', profileId);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Error fetching user photos:', error);
+        setUserPhotos(
+          res.user.profilePicture ? [res.user.profilePicture] : []
+        );
+      } else {
+        const urls = (data ?? []).map((photo: { url: string }) => photo.url);
+        setUserPhotos(
+          urls.length > 0 ? urls : res.user.profilePicture ? [res.user.profilePicture] : []
+        );
+      }
+
+      setProfileLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
+
+  const handleMessage = async () => {
+    if (!user) return;
+    setOpeningChat(true);
+    const res = await getOrCreateDm(user.id);
+    setOpeningChat(false);
+    if (res.success && res.conversationId) {
+      router.push(`/chat/${res.conversationId}`);
+    } else {
+      Alert.alert(
+        'Chat unavailable',
+        res.message ??
+          'Open a profile from Browse (real accounts) or apply the database migration in docs.'
+      );
     }
   };
   
@@ -73,13 +120,32 @@ export default function UserProfileScreen() {
     );
   };
 
-  if (loading || !user) {
+  if (profileLoading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style="light" />
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.text }]}>Loading profile...</Text>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (loadError || !user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.loadingContainer}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.loadingText, { color: colors.text, textAlign: 'center', marginTop: 24 }]}>
+            {loadError ?? 'Profile not found.'}
+          </Text>
         </SafeAreaView>
       </View>
     );
@@ -99,9 +165,16 @@ export default function UserProfileScreen() {
           <TouchableOpacity 
             style={[styles.messageButton, { backgroundColor: colors.primary }]}
             onPress={handleMessage}
+            disabled={openingChat}
           >
-            <MessageCircle size={20} color="#FFFFFF" />
-            <Text style={styles.messageButtonText}>Message</Text>
+            {openingChat ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <MessageCircle size={20} color="#FFFFFF" />
+                <Text style={styles.messageButtonText}>Message</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
         
@@ -140,21 +213,34 @@ export default function UserProfileScreen() {
                 <View style={styles.locationContainer}>
                   <MapPin size={14} color={colors.textSecondary} />
                   <Text style={[styles.locationText, { color: colors.textSecondary }]}>
-                    {user.location} • {formatDistanceMiles(user.distance)} away
+                    {user.distance > 0
+                      ? `${user.location} • ${formatDistanceMiles(user.distance)} away`
+                      : user.location}
                   </Text>
                 </View>
               )}
-              
+
               <Text style={[styles.lastActive, { color: colors.textSecondary }]}>
-                {user.isOnline ? 'Online now' : `Last active ${user.lastActive}`}
+                {user.isOnline
+                  ? 'Online now'
+                  : user.lastActive
+                    ? `Last active ${user.lastActive}`
+                    : 'Offline'}
               </Text>
               
               <TouchableOpacity 
                 style={[styles.fullWidthButton, { backgroundColor: colors.primary }]}
                 onPress={handleMessage}
+                disabled={openingChat}
               >
-                <MessageCircle size={18} color="#FFFFFF" />
-                <Text style={styles.fullWidthButtonText}>Message</Text>
+                {openingChat ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MessageCircle size={18} color="#FFFFFF" />
+                    <Text style={styles.fullWidthButtonText}>Message</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>

@@ -1,4 +1,5 @@
 import { supabaseConfig } from "@/config/supabase-config";
+import type { User } from "@/types/user";
 
 export interface IUserProfilePayload {
   id: string;
@@ -42,8 +43,7 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
         {
           id: payload.id,
           email: payload.email,
-          username: payload.username,
-          display_name: payload.display_name ?? payload.username,
+          display_name: payload.display_name ?? null,
           bio: payload.bio ?? null,
           date_of_birth: payload.date_of_birth ?? null,
           gender_identity: payload.gender_identity ?? null,
@@ -113,6 +113,82 @@ export const createUserPreferences = async (
         error instanceof Error
           ? error.message
           : "An error occurred while creating preferences.",
+    };
+  }
+};
+
+function computeAgeFromDob(dateOfBirth: string | null | undefined): number {
+  if (!dateOfBirth) return 0;
+  const d = new Date(dateOfBirth);
+  if (Number.isNaN(d.getTime())) return 0;
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const md = today.getMonth() - d.getMonth();
+  if (md < 0 || (md === 0 && today.getDate() < d.getDate())) {
+    age -= 1;
+  }
+  return Math.max(0, age);
+}
+
+/** Map a `user_profiles` row to the in-app `User` shape (viewing another person). */
+export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
+  const city = row.location_city as string | null | undefined;
+  const state = row.location_state as string | null | undefined;
+  const location = [city, state].filter(Boolean).join(", ") || undefined;
+
+  return {
+    id: String(row.id),
+    username:
+      (row.display_name as string | null | undefined) ||
+      (row.username as string | null | undefined) ||
+      "Unknown",
+    age: computeAgeFromDob(row.date_of_birth as string | null | undefined),
+    gender: (row.gender_identity as string | null | undefined) || "",
+    distance: 0,
+    bio: (row.bio as string | null | undefined) || undefined,
+    profilePicture:
+      (row.profile_picture_url as string | null | undefined) ||
+      "https://via.placeholder.com/300x300?text=User",
+    location,
+    isOnline: false,
+  };
+}
+
+export const getProfileById = async (profileId: string) => {
+  try {
+    const { data, error } = await supabaseConfig
+      .from("user_profiles")
+      .select("*")
+      .eq("id", profileId)
+      .maybeSingle();
+
+    if (error) {
+      return {
+        success: false as const,
+        user: null as User | null,
+        message: error.message,
+      };
+    }
+
+    if (!data) {
+      return {
+        success: false as const,
+        user: null as User | null,
+        message: "Profile not found.",
+      };
+    }
+
+    return {
+      success: true as const,
+      user: mapUserProfileRowToUser(data as Record<string, unknown>),
+      message: undefined as string | undefined,
+    };
+  } catch (error) {
+    return {
+      success: false as const,
+      user: null as User | null,
+      message:
+        error instanceof Error ? error.message : "Failed to load profile.",
     };
   }
 };

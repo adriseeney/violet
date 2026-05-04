@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Search } from 'lucide-react-native';
 import { SearchBar } from '@/components/SearchBar';
-import { useMockChats } from '@/hooks/useMockChats';
+import { useChats } from '@/hooks/useChats';
 import { Chat } from '@/types/chat';
 import { ChatListItem } from '@/components/ChatListItem';
 
 export default function ChatsScreen() {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const { chats, loading } = useMockChats();
+  const { chats, loading, error } = useChats();
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
   
   // Update filtered chats when search query or chats change
@@ -46,6 +45,10 @@ export default function ChatsScreen() {
           onChangeText={setSearchQuery}
           placeholder="Search conversations"
         />
+
+        {error ? (
+          <Text style={[styles.errorBanner, { color: colors.textSecondary }]}>{error}</Text>
+        ) : null}
         
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -56,7 +59,11 @@ export default function ChatsScreen() {
         ) : filteredChats.length > 0 ? (
           <FlatList
             data={filteredChats}
-            renderItem={({ item }) => <ChatListItem chat={item} />}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => handleChatPress(item.id)}>
+                <ChatListItem chat={item} />
+              </Pressable>
+            )}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.chatList}
             showsVerticalScrollIndicator={false}
@@ -92,6 +99,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontFamily: 'Inter-Bold',
+  },
+  errorBanner: {
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   chatList: {
     paddingTop: 8,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Stack,
   SplashScreen,
@@ -29,19 +29,36 @@ function SessionGate() {
   const rootNavigationState = useRootNavigationState();
   const [session, setSession] = useState<any>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const hasLoadedSession = useRef(false);
+
 
   useEffect(() => {
-    let isMounted = true;
+    if (hasLoadedSession.current) return;
+    hasLoadedSession.current = true;
+
+    let isMounted = true; 
 
     const loadSession = async () => {
-      const {
-        data: { session },
-      } = await supabaseConfig.auth.getSession();
+      try {
+        const {
+          data: { session },
+          error, 
+        } = await supabaseConfig.auth.getSession();
 
-      if (!isMounted) return;
+        if (error) {
+          throw error;
+        }
 
-      setSession(session);
-      setCheckingSession(false);
+        if (!isMounted) return;
+        
+        setSession(session ?? null);
+      } catch (error) {
+        console.error('Error loading session:', error);
+      } finally {
+        if (isMounted) {
+          setCheckingSession(false);
+        }
+      }
     };
 
     loadSession();

@@ -9,30 +9,78 @@ import { ProfileAttribute } from '@/components/ProfileAttribute';
 import * as ImagePicker from 'expo-image-picker';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
 import { useEffect, useState } from 'react';
-import { getCurrentUserProfile } from '@/services/users';
+import { getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
+import type { User } from '@/types/user';
 
-// Mockup profile photos
-const initialPhotos = [
-  "",
-];
+const PLACEHOLDER_PHOTO = 'https://via.placeholder.com/400x500?text=Add+photo';
+
+function strField(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = row[k];
+    if (v != null && String(v).trim() !== '') return String(v);
+  }
+  return '';
+}
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
-  const [profileImage, setProfileImage] = useState<string | null>(initialPhotos[0]);
-  const [photos, setPhotos] = useState<string[]>(initialPhotos);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([PLACEHOLDER_PHOTO]);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Profile info with editable fields
+
   const [profileInfo, setProfileInfo] = useState({
-    name: "Micah", // Default name
-    age: "28",
-    bio: "Just moved to the city, looking to meet new people and have fun!",
-    height: "160",
-    weight: "75",
-    ethnicity: "Black",
-    location: "0.5 m",
+    name: '',
+    age: '',
+    bio: '',
+    height: '',
+    weight: '',
+    ethnicity: '',
+    location: '',
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const row = await getCurrentUserProfile();
+      if (cancelled) return;
+
+      if (!row) {
+        setProfileUser(null);
+        setProfileLoading(false);
+        return;
+      }
+
+      const r = row as Record<string, unknown>;
+      const u = mapUserProfileRowToUser(r);
+      setProfileUser(u);
+
+      const pic = (r.profile_picture_url as string | null | undefined)?.trim();
+      const photoList =
+        pic && pic.length > 0 ? [pic] : [PLACEHOLDER_PHOTO];
+      setPhotos(photoList);
+      setProfileImage(photoList[0]);
+
+      setProfileInfo({
+        name: u.username,
+        age: u.age > 0 ? String(u.age) : '',
+        bio: u.bio ?? '',
+        height: strField(r, 'height_cm', 'height'),
+        weight: strField(r, 'weight_kg', 'weight'),
+        ethnicity: strField(r, 'ethnicity'),
+        location:
+          u.location ??
+          [r.location_city, r.location_state].filter(Boolean).join(', '),
+      });
+
+      setProfileLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -304,6 +352,35 @@ export default function ProfileScreen() {
     </View>
   );
 
+  if (profileLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style="light" />
+        <SafeAreaView style={[styles.safeArea, styles.loadingSafe]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  const intimacyUser: User | null = profileUser
+    ? {
+        ...profileUser,
+        profilePicture:
+          photos[0] && photos[0] !== PLACEHOLDER_PHOTO
+            ? photos[0]
+            : profileUser.profilePicture,
+        sexualPreference: profileUser.sexualPreference ?? 'Everyone',
+        sexualRole: profileUser.sexualRole ?? 'Not specified',
+        sexualPosition: profileUser.sexualPosition ?? 'Both',
+        intimacyPreferences: profileUser.intimacyPreferences ?? [],
+        sexStyle: profileUser.sexStyle ?? 'Moderate',
+        hivStatus: profileUser.hivStatus ?? 'Prefer not to say',
+        safetyPractices: profileUser.safetyPractices ?? '',
+        showPreferencesPublicly: profileUser.showPreferencesPublicly ?? true,
+      }
+    : null;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
@@ -318,28 +395,9 @@ export default function ProfileScreen() {
           <ProfilePhotos />
           <ProfileInfo />
           
-          {/* Add IntimacyPreferences component with mock user data for profile */}
-          {!isEditing && (
+          {!isEditing && intimacyUser && (
             <View style={styles.preferencesSection}>
-              <IntimacyPreferences 
-                user={{
-                  id: "1",
-                  username: profileInfo.name,
-                  age: parseInt(profileInfo.age),
-                  gender: "Male",
-                  distance: 0,
-                  profilePicture: photos[0],
-                  sexualPreference: "Everyone",
-                  sexualRole: "Versatile",
-                  sexualPosition: "Both",
-                  intimacyPreferences: ["Casual Dating", "Friendship"],
-                  sexStyle: "Moderate",
-                  hivStatus: "Negative",
-                  safetyPractices: "Always practice safe sex",
-                  showPreferencesPublicly: true
-                }} 
-                showFull={true} 
-              />
+              <IntimacyPreferences user={intimacyUser} showFull={true} />
             </View>
           )}
           
@@ -373,6 +431,11 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  loadingSafe: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
