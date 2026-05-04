@@ -24,7 +24,7 @@ type MultiSelectorProps = {
 };
 
 // Role options for all genders
-const sexualRoleOptions = ["Active", "Passive", "Versatile", "Not specified"];
+const sexualRoleOptions = ["Active", "Passive", "Versatile", "Not specified"]; 
 
 // Position options
 const sexualPositionOptions = ["Giving", "Receiving", "Both", "None"];
@@ -33,7 +33,7 @@ const sexualPositionOptions = ["Giving", "Receiving", "Both", "None"];
 const intimacyOptions = ["Casual Dating", "Hookups", "Serious Relationship", "Friendship", "Networking"];
 
 // Updated sex style options to be inclusive
-const sexStyleOptions = ["Gentle", "Moderate", "Intense", "Experimental", "BDSM/Kink"];
+const sexStyleOptions = ["Gentle", "Moderate",  "Intense", "Experimental", "BDSM/Kink"];
 
 // Health status options
 const hivStatusOptions = ["Negative", "Negative on PrEP", "Positive", "Positive Undetectable", "Prefer not to say"];
