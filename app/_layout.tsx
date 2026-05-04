@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Stack,
   SplashScreen,
@@ -19,7 +19,6 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { supabaseConfig } from '@/config/supabase-config';
 import { LocationProvider } from '@/contexts/location-context';
 
-
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
@@ -29,44 +28,33 @@ function SessionGate() {
   const rootNavigationState = useRootNavigationState();
   const [session, setSession] = useState<any>(null);
   const [checkingSession, setCheckingSession] = useState(true);
-  const hasLoadedSession = useRef(false);
-
 
   useEffect(() => {
-    if (hasLoadedSession.current) return;
-    hasLoadedSession.current = true;
-
-    let isMounted = true; 
+    let isMounted = true;
 
     const loadSession = async () => {
-      try {
-        const {
-          data: { session },
-          error, 
-        } = await supabaseConfig.auth.getSession();
+      const {
+        data: { session },
+      } = await supabaseConfig.auth.getSession();
 
-        if (error) {
-          throw error;
-        }
+      if (!isMounted) return;
 
-        if (!isMounted) return;
-        
-        setSession(session ?? null);
-      } catch (error) {
-        console.error('Error loading session:', error);
-      } finally {
-        if (isMounted) {
-          setCheckingSession(false);
-        }
-      }
+      setSession(session);
+      setCheckingSession(false);
+
+      console.log("INITIAL SESSION:", session);
     };
 
     loadSession();
 
     const {
       data: { subscription },
-    } = supabaseConfig.auth.onAuthStateChange((_event, session) => {
+    } = supabaseConfig.auth.onAuthStateChange((event, session) => {
+      console.log("AUTH EVENT:", event);
+      console.log("AUTH SESSION:", session);
+    
       if (!isMounted) return;
+    
       setSession(session);
     });
 
@@ -77,14 +65,19 @@ function SessionGate() {
   }, []);
 
   useEffect(() => {
+    console.log("ROUTE GUARD:", {
+      session,
+      checkingSession,
+      segments,
+      rootKey: rootNavigationState?.key,
+    });
     if (!rootNavigationState?.key || checkingSession) {
       return;
     }
 
     const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (session && !inTabsGroup) {
+    if (session && inAuthGroup) {
       router.replace('/(tabs)');
     } else if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
@@ -123,7 +116,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <LocationProvider>
-        <SessionGate />
+      <SessionGate />
       </LocationProvider>
       <StatusBar style="light" />
     </ThemeProvider>
