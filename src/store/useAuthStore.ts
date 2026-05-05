@@ -84,7 +84,7 @@ export const useAuthStore = create<AuthStore>()(
         return result;
       },
       signOut: async () => {
-        set({ isLoading: true });
+        set({ ...getAuthSessionState(null), isLoading: true });
 
         const result = await logoutAuthUser();
         set({ ...getAuthSessionState(null), isLoading: false });
