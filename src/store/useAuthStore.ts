@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthStore>()(
 
         const result = await loginAuthUser(payload);
 
-        if (result.success && result.data.session) {
+        if (result.success && result.data?.session) {
           set({ ...getAuthSessionState(result.data.session), isLoading: false });
         } else {
           set({ ...getAuthSessionState(null), isLoading: false });
