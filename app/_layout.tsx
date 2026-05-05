@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Stack,
   SplashScreen,
@@ -18,6 +18,7 @@ import {
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { supabaseConfig } from '@/config/supabase-config';
 import { LocationProvider } from '@/contexts/location-context';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 
 // Prevent splash screen from auto-hiding
@@ -27,31 +28,18 @@ function SessionGate() {
   const router = useRouter();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
-  const [session, setSession] = useState<any>(null);
+  const user = useAuthStore((state) => state.user);
+  const hydrateSession = useAuthStore((state) => state.hydrateSession);
+  const setSession = useAuthStore((state) => state.setSession);
   const [checkingSession, setCheckingSession] = useState(true);
-  const hasLoadedSession = useRef(false);
 
 
   useEffect(() => {
-    if (hasLoadedSession.current) return;
-    hasLoadedSession.current = true;
-
-    let isMounted = true; 
+    let isMounted = true;
 
     const loadSession = async () => {
       try {
-        const {
-          data: { session },
-          error, 
-        } = await supabaseConfig.auth.getSession();
-
-        if (error) {
-          throw error;
-        }
-
-        if (!isMounted) return;
-        
-        setSession(session ?? null);
+        await hydrateSession();
       } catch (error) {
         console.error('Error loading session:', error);
       } finally {
@@ -67,14 +55,14 @@ function SessionGate() {
       data: { subscription },
     } = supabaseConfig.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
-      setSession(session);
+      setSession(session ?? null);
     });
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [hydrateSession, setSession]);
 
   useEffect(() => {
     if (!rootNavigationState?.key || checkingSession) {
@@ -84,12 +72,12 @@ function SessionGate() {
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
 
-    if (session && !inTabsGroup) {
+    if (user && !inTabsGroup) {
       router.replace('/(tabs)');
-    } else if (!session && !inAuthGroup) {
+    } else if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
-  }, [session, segments, router, rootNavigationState?.key, checkingSession]);
+  }, [user, segments, router, rootNavigationState?.key, checkingSession]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

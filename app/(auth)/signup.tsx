@@ -5,15 +5,16 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Eye, EyeOff, Check } from 'lucide-react-native';
 import { useMockBotMessages } from '@/hooks/useMockBotMessages';
-import { registerAuthUser } from '@/services/auth';
 import { createUserProfile } from '@/services/users';
 import { createUserPreferences } from '@/services/users';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 
 
 export default function Signup() {
   const { colors } = useTheme();
   const { scheduleWelcomeMessage } = useMockBotMessages();
+  const signUp = useAuthStore((state) => state.signUp);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -38,7 +39,7 @@ export default function Signup() {
     setError("");
   
     try {
-      const authResponse = await registerAuthUser({
+      const authResponse = await signUp({
         email,
         password,
       });

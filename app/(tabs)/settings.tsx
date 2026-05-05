@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { logoutAuthUser } from '@/services/auth';
+import { useAuthStore } from '@/src/store/useAuthStore';
 import {
   ChevronRight, Bell, Shield, Eye, Moon, MapPin,
   Trash2, LogOut, HelpCircle, FileText, Heart, Users, Filter
@@ -12,6 +12,7 @@ import {
 
 export default function SettingsScreen() {
   const { colors, toggleTheme, isDark } = useTheme();
+  const signOut = useAuthStore((state) => state.signOut);
   const [showLocation, setShowLocation] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [showOnline, setShowOnline] = useState(true);
@@ -29,16 +30,11 @@ export default function SettingsScreen() {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            const response = await logoutAuthUser();
-            console.log('logout response:', response);
+            const response = await signOut();
   
             if (!response.success) {
               Alert.alert('Logout failed', response.message);
-              return;
             }
-  
-            Alert.alert('Logged out', 'Supabase sign out succeeded.');
-            router.replace('/(auth)/login');
           },
         },
       ]
@@ -58,14 +54,11 @@ export default function SettingsScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const response = await logoutAuthUser();
+            const response = await signOut();
 
             if (!response.success) {
               Alert.alert('Action failed', response.message);
-              return;
             }
-
-            router.replace('/(auth)/login');
           },
         },
       ]

@@ -4,11 +4,12 @@ import { router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
-import { loginAuthUser } from '@/services/auth';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 
 export default function Login() {
   const { colors } = useTheme();
+  const signIn = useAuthStore((state) => state.signIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,7 +26,7 @@ export default function Login() {
     setError('');
   
     try {
-      const response = await loginAuthUser({
+      const response = await signIn({
         email,
         password,
       });

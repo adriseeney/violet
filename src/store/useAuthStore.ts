@@ -7,6 +7,7 @@ import {
   getCurrentUserSession,
   loginAuthUser,
   logoutAuthUser,
+  registerAuthUser,
 } from "@/services/auth";
 
 type SignInPayload = {
@@ -14,7 +15,10 @@ type SignInPayload = {
   password: string;
 };
 
+type SignUpPayload = SignInPayload;
+
 type SignInResult = Awaited<ReturnType<typeof loginAuthUser>>;
+type SignUpResult = Awaited<ReturnType<typeof registerAuthUser>>;
 type SignOutResult = Awaited<ReturnType<typeof logoutAuthUser>>;
 
 type AuthSessionState = {
@@ -27,6 +31,7 @@ type AuthStore = AuthSessionState & {
   hydrateSession: () => Promise<Session | null>;
   setSession: (session: Session | null) => void;
   signIn: (payload: SignInPayload) => Promise<SignInResult>;
+  signUp: (payload: SignUpPayload) => Promise<SignUpResult>;
   signOut: () => Promise<SignOutResult>;
 };
 
@@ -61,6 +66,19 @@ export const useAuthStore = create<AuthStore>()(
           set({ ...getAuthSessionState(result.data.session), isLoading: false });
         } else {
           set({ ...getAuthSessionState(null), isLoading: false });
+        }
+
+        return result;
+      },
+      signUp: async (payload) => {
+        set({ isLoading: true });
+
+        const result = await registerAuthUser(payload);
+
+        if (result.success && result.data?.session) {
+          set({ ...getAuthSessionState(result.data.session), isLoading: false });
+        } else {
+          set({ isLoading: false });
         }
 
         return result;
