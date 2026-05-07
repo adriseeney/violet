@@ -58,7 +58,7 @@ export default function Signup() {
         return;
       }
 
-      if (!authResponse.data.session) {
+      if (!authResponse.data?.session) {
         setError("Account created. Please confirm your email, then log in.");
         return;
       }
