@@ -359,6 +359,7 @@ create policy "city_activity_stats_select_authenticated"
 -- Discovery RPCs
 -- ---------------------------------------------------------------------------
 
+drop function if exists public.update_user_location(uuid, double precision, double precision);
 create or replace function public.update_user_location(
   current_user_id uuid,
   user_lat double precision,
@@ -417,6 +418,7 @@ as $$
   );
 $$;
 
+drop function if exists public.nearby_profiles(double precision, double precision, uuid);
 create or replace function public.nearby_profiles(
   user_lat double precision,
   user_lng double precision,
