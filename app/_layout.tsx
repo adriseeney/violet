@@ -48,6 +48,7 @@ function SessionGate() {
           throw error;
         }
 
+<<<<<<< HEAD
         if (!isMounted) return;
         
         setSession(session ?? null);
@@ -58,6 +59,12 @@ function SessionGate() {
           setCheckingSession(false);
         }
       }
+=======
+      setSession(session);
+      setCheckingSession(false);
+
+      console.log("INITIAL SESSION:", session);
+>>>>>>> origin/fix/auth-routing-bugs
     };
 
     loadSession();
@@ -69,6 +76,7 @@ function SessionGate() {
       console.log("AUTH SESSION:", session);
     
       if (!isMounted) return;
+    
       setSession(session);
     });
 
@@ -91,7 +99,7 @@ function SessionGate() {
 
     const inAuthGroup = segments[0] === '(auth)';
 
-    if (session && !inTabsGroup) {
+    if (session && inAuthGroup) {
       router.replace('/(tabs)');
     } else if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
