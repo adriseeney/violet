@@ -3,11 +3,18 @@ import { supabaseConfig } from "@/config/supabase-config";
 export const registerAuthUser = async (payload: {
   email: string;
   password: string;
+  username?: string;
 }) => {
   try {
     const { data, error } = await supabaseConfig.auth.signUp({
       email: payload.email,
       password: payload.password,
+      options: {
+        data: {
+          username: payload.username,
+          display_name: payload.username,
+        },
+      },
     });
 
     if (error) {

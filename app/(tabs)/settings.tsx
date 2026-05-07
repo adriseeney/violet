@@ -124,11 +124,11 @@ export default function SettingsScreen() {
         disabled={!onPress}
         activeOpacity={0.7}
       >
-        <View style={styles.settingItemLeft}>
+        <View style={styles.settingLeft}>
           {icon}
           <Text
             style={[
-              styles.settingItemText,
+              styles.settingTitle,
               { color: danger ? '#ef4444' : colors.text },
             ]}
           >

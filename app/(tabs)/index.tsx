@@ -93,7 +93,9 @@ export default function BrowseScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: User }) => <UserCard user={item} />;
+  const renderItem = ({ item }: { item: User }) => (
+    <UserCard user={{ ...item, isOnline: item.isOnline ?? false }} />
+  );
 
   if (locationLoading) {
     return (

@@ -11,9 +11,12 @@ const darkTheme = {
   cardBackground: '#16161D',
   text: '#FFFFFF',
   textSecondary: '#B3B3C2',
+  textTertiary: '#7A7A8C',
   border: '#2A2A35',
   tabBarBackground: '#16161D',
   success: '#4CAF50',
+  warning: '#F59E0B',
+  error: '#EF4444',
   /** Android `Switch` track when on */
   primaryTransparent: '#7C3AED80',
 };
@@ -28,9 +31,12 @@ const lightTheme = {
   cardBackground: '#FFFFFF',
   text: '#0B0B0F',
   textSecondary: '#5C5C6E',
+  textTertiary: '#8A8A99',
   border: '#D8D8E4',
   tabBarBackground: '#FFFFFF',
   success: '#4CAF50',
+  warning: '#F59E0B',
+  error: '#EF4444',
   primaryTransparent: '#7C3AED80',
 };
 
