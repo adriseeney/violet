@@ -55,6 +55,17 @@ create table if not exists public.user_photos (
   updated_at timestamptz not null default now()
 );
 
+alter table public.user_photos
+  add column if not exists id uuid default gen_random_uuid(),
+  add column if not exists user_id uuid references auth.users (id) on delete cascade,
+  add column if not exists url text,
+  add column if not exists storage_path text,
+  add column if not exists display_order integer not null default 0,
+  add column if not exists is_primary boolean not null default false,
+  add column if not exists is_private boolean not null default false,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
 create index if not exists idx_user_photos_user_order
   on public.user_photos (user_id, display_order);
 
@@ -105,6 +116,15 @@ create table if not exists public.user_settings (
   updated_at timestamptz not null default now()
 );
 
+alter table public.user_settings
+  add column if not exists user_id uuid references auth.users (id) on delete cascade,
+  add column if not exists notifications_enabled boolean not null default true,
+  add column if not exists show_location boolean not null default false,
+  add column if not exists show_online boolean not null default true,
+  add column if not exists theme_preference text not null default 'system',
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
 alter table public.user_settings enable row level security;
 
 drop policy if exists "user_settings_select_own" on public.user_settings;
@@ -135,6 +155,11 @@ create table if not exists public.user_favorites (
   constraint user_favorites_not_self check (user_id <> favorite_user_id)
 );
 
+alter table public.user_favorites
+  add column if not exists user_id uuid references auth.users (id) on delete cascade,
+  add column if not exists favorite_user_id uuid references auth.users (id) on delete cascade,
+  add column if not exists created_at timestamptz not null default now();
+
 create index if not exists idx_user_favorites_favorite_user
   on public.user_favorites (favorite_user_id);
 
@@ -163,6 +188,12 @@ create table if not exists public.user_blocks (
   primary key (blocker_id, blocked_id),
   constraint user_blocks_not_self check (blocker_id <> blocked_id)
 );
+
+alter table public.user_blocks
+  add column if not exists blocker_id uuid references auth.users (id) on delete cascade,
+  add column if not exists blocked_id uuid references auth.users (id) on delete cascade,
+  add column if not exists reason text,
+  add column if not exists created_at timestamptz not null default now();
 
 create index if not exists idx_user_blocks_blocked
   on public.user_blocks (blocked_id);
@@ -196,6 +227,16 @@ create table if not exists public.user_reports (
   constraint user_reports_not_self check (reporter_id <> reported_user_id)
 );
 
+alter table public.user_reports
+  add column if not exists id uuid default gen_random_uuid(),
+  add column if not exists reporter_id uuid references auth.users (id) on delete cascade,
+  add column if not exists reported_user_id uuid references auth.users (id) on delete cascade,
+  add column if not exists reason text,
+  add column if not exists details text,
+  add column if not exists status text not null default 'open',
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
 create index if not exists idx_user_reports_reporter
   on public.user_reports (reporter_id, created_at desc);
 
@@ -223,6 +264,14 @@ create table if not exists public.hidden_album_requests (
   responded_at timestamptz,
   constraint hidden_album_requests_not_self check (requester_id <> owner_id)
 );
+
+alter table public.hidden_album_requests
+  add column if not exists id uuid default gen_random_uuid(),
+  add column if not exists requester_id uuid references auth.users (id) on delete cascade,
+  add column if not exists owner_id uuid references auth.users (id) on delete cascade,
+  add column if not exists status text not null default 'pending',
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists responded_at timestamptz;
 
 create unique index if not exists idx_hidden_album_requests_open
   on public.hidden_album_requests (requester_id, owner_id)
@@ -265,6 +314,17 @@ create table if not exists public.cities (
   updated_at timestamptz not null default now()
 );
 
+alter table public.cities
+  add column if not exists id uuid default gen_random_uuid(),
+  add column if not exists name text,
+  add column if not exists state text,
+  add column if not exists country text,
+  add column if not exists latitude double precision,
+  add column if not exists longitude double precision,
+  add column if not exists image_url text,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
 create unique index if not exists idx_cities_name_region
   on public.cities ((lower(name)), (coalesce(lower(state), '')), (lower(country)));
 
@@ -281,6 +341,11 @@ create table if not exists public.city_activity_stats (
   active_users integer not null default 0,
   updated_at timestamptz not null default now()
 );
+
+alter table public.city_activity_stats
+  add column if not exists city_id uuid references public.cities (id) on delete cascade,
+  add column if not exists active_users integer not null default 0,
+  add column if not exists updated_at timestamptz not null default now();
 
 alter table public.city_activity_stats enable row level security;
 
