@@ -4,6 +4,9 @@ Run the SQL files in `supabase/migrations/` in filename order. They are written
 to be idempotent, so they are safe to paste into the Supabase SQL Editor during
 development if you need to verify or repair your project schema.
 
+If your project already has partial tables/functions and a migration fails, run
+`repair_existing_schema.sql` once, then rerun the failed migration from the top.
+
 ## Order
 
 1. `20260416170000_profiles_preferences_auth_trigger.sql`
