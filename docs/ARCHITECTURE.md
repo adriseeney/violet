@@ -6,7 +6,12 @@ Technical structure of the app: runtime layers, navigation, data access, and how
 
 ## 1. High-level overview
 
-Violet is an **Expo (React Native)** app using **Expo Router** for navigation. **Supabase** backs authentication and persistent profile/preferences; **Postgres RPCs** support location updates and nearby discovery. Several features (chats, cities, parts of profile) still use **in-app mock hooks** until backend parity exists.
+Violet is an **Expo (React Native)** app using **Expo Router** for navigation.
+**Supabase** backs authentication, persistent profile/preferences, nearby
+discovery, and direct messages. **Postgres RPCs** support location updates,
+nearby discovery, and chat inbox actions. Some prototype surfaces, such as city
+explore and parts of profile editing, still use local/mock state until backend
+parity exists.
 
 ```mermaid
 flowchart TB
@@ -54,6 +59,7 @@ flowchart TB
 | Runtime | Expo SDK 52, React 18.3, React Native 0.76 |
 | Navigation | Expo Router (file-based routes, Stack + Tabs) |
 | Auth & API | `@supabase/supabase-js` |
+| Auth state | `zustand` store in `src/store/useAuthStore.ts` |
 | Config | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY` |
 | Session (native) | AsyncStorage via Supabase client options in `config/supabase-config.ts` |
 | Fonts | `@expo-google-fonts/inter` |
@@ -70,19 +76,16 @@ flowchart TB
 | Splash | `SplashScreen.preventAutoHideAsync()` until fonts load or error |
 | Fonts | `useFonts` (Inter variants) |
 | Providers | `ThemeProvider` → `LocationProvider` |
-| Auth shell | `SessionGate` renders root `Stack` and redirects based on Supabase session |
+| Auth shell | `SessionGate` renders root `Stack` and redirects based on `useAuthStore` user state |
 | Status bar | `StatusBar` from `expo-status-bar` |
 
 ### SessionGate (auth routing)
 
-- Reads `getSession()` once, subscribes to `onAuthStateChange`.
-- **Session + not in `(tabs)`** → `router.replace('/(tabs)')`.
-- **No session + not in `(auth)`** → `router.replace('/(auth)/login')`.
+- Hydrates `useAuthStore` from the current Supabase session and subscribes to
+  `onAuthStateChange`.
+- **User + not in `(tabs)`** → `router.replace('/(tabs)')`.
+- **No user + not in `(auth)`** → `router.replace('/(auth)/login')`.
 - Root stack screens: `(auth)`, `(tabs)`, `+not-found`.
-
-### Dead / unused in shell
-
-- **`contexts/AuthContext.tsx`**: mock `AuthProvider` / `useAuth`; **not** wrapped in root layout and **not** imported elsewhere. Real auth is **only** Supabase + `SessionGate`.
 
 ---
 
@@ -124,6 +127,12 @@ Singleton `createClient` with RN URL polyfill, AsyncStorage on native, `persistS
 | `loginAuthUser` | `auth.signInWithPassword` |
 | `getCurrentUserSession` | `auth.getSession` |
 | `logoutAuthUser` | `auth.signOut` |
+
+### `src/store/useAuthStore.ts`
+
+Zustand store wrapping the auth service layer. It persists `session` and `user`,
+exposes `signIn`, `signUp`, `signOut`, `hydrateSession`, and `setSession`, and is
+the source of truth for auth routing.
 
 ### `services/users.ts`
 
@@ -182,10 +191,14 @@ Mocks exist for **Explore (cities)** and other legacy UI; **live DMs** use Supab
 
 ## 8. Supabase contract (what the client assumes)
 
+For the full table/function map, see
+[SUPABASE-SCHEMA.md](./SUPABASE-SCHEMA.md).
+
 **Tables (referenced in TS):**
 
 - `user_profiles`
 - `user_preferences`
+- `user_photos`
 
 **RPCs:**
 
