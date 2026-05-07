@@ -19,6 +19,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { supabaseConfig } from '@/config/supabase-config';
 import { LocationProvider } from '@/contexts/location-context';
 
+
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
@@ -26,23 +27,37 @@ function SessionGate() {
   const router = useRouter();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
-  const [session, setSession] = useState<any>(null);
+  const user = useAuthStore((state) => state.user);
+  const hydrateSession = useAuthStore((state) => state.hydrateSession);
+  const setSession = useAuthStore((state) => state.setSession);
   const [checkingSession, setCheckingSession] = useState(true);
+  const hasLoadedSession = useRef(false);
+
 
   useEffect(() => {
     let isMounted = true;
 
     const loadSession = async () => {
-      const {
-        data: { session },
-      } = await supabaseConfig.auth.getSession();
+      try {
+        const {
+          data: { session },
+          error, 
+        } = await supabaseConfig.auth.getSession();
 
-      if (!isMounted) return;
+        if (error) {
+          throw error;
+        }
 
-      setSession(session);
-      setCheckingSession(false);
-
-      console.log("INITIAL SESSION:", session);
+        if (!isMounted) return;
+        
+        setSession(session ?? null);
+      } catch (error) {
+        console.error('Error loading session:', error);
+      } finally {
+        if (isMounted) {
+          setCheckingSession(false);
+        }
+      }
     };
 
     loadSession();
@@ -54,7 +69,6 @@ function SessionGate() {
       console.log("AUTH SESSION:", session);
     
       if (!isMounted) return;
-    
       setSession(session);
     });
 
@@ -62,7 +76,7 @@ function SessionGate() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [hydrateSession, setSession]);
 
   useEffect(() => {
     console.log("ROUTE GUARD:", {
@@ -77,12 +91,12 @@ function SessionGate() {
 
     const inAuthGroup = segments[0] === '(auth)';
 
-    if (session && inAuthGroup) {
+    if (session && !inTabsGroup) {
       router.replace('/(tabs)');
-    } else if (!session && !inAuthGroup) {
+    } else if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
-  }, [session, segments, router, rootNavigationState?.key, checkingSession]);
+  }, [user, segments, router, rootNavigationState?.key, checkingSession]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

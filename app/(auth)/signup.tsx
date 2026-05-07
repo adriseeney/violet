@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Eye, EyeOff, Check } from 'lucide-react-native';
-import { useMockBotMessages } from '@/hooks/useMockBotMessages';
-import { registerAuthUser } from '@/services/auth';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { createUserProfile } from '@/services/users';
 import { createUserPreferences } from '@/services/users';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 
 
 export default function Signup() {
   const { colors } = useTheme();
-  const { scheduleWelcomeMessage } = useMockBotMessages();
+  const signUp = useAuthStore((state) => state.signUp);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -24,7 +23,7 @@ export default function Signup() {
 
 
   const handleSignup = async () => {
-    if (!email || !password ) {
+    if (!email || !password || !username ) {
       setError("Please fill in all required fields");
       return;
     }
@@ -38,9 +37,10 @@ export default function Signup() {
     setError("");
   
     try {
-      const authResponse = await registerAuthUser({
-        email,
+      const authResponse = await signUp({
+        email: trimmedEmail,
         password,
+        username: trimmedUsername,
       });
   
       if (!authResponse.success) {
@@ -54,10 +54,17 @@ export default function Signup() {
         setError("User account created, but no user ID was returned.");
         return;
       }
+
+      if (!authResponse.data?.session) {
+        setError("Account created. Please confirm your email, then log in.");
+        return;
+      }
   
       const profileResponse = await createUserProfile({
         id: authUserId,
-        email
+        email,
+        username,
+        display_name: username,
       });
   
       if (!profileResponse.success) {
@@ -77,7 +84,7 @@ export default function Signup() {
       }
   
       router.replace("/(tabs)");
-    } catch (error) {
+    } catch {
       setError("Error creating account. Please try again.");
     } finally {
       setLoading(false);
@@ -146,6 +153,25 @@ export default function Signup() {
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Username</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.cardBackground,
+                    color: colors.text,
+                    borderColor: colors.border
+                  }
+                ]}
+                placeholder="Choose a username"
+                placeholderTextColor={colors.textSecondary}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
               />
             </View>
             
