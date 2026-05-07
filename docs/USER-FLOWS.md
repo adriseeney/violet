@@ -29,9 +29,9 @@ What a **person using the app** can do today, the **order of steps**, which part
 **Steps**
 
 1. Open app without a session → redirected to **Login**; user navigates to **Sign up**.
-2. Enter **email**, **password**, **username**, **gender identity**, **sexual preference** (all required in UI).
+2. Enter **email**, **password**, and **username**.
 3. Password length validated (minimum 6 characters).
-4. App calls `registerAuthUser` → Supabase `signUp`.
+4. App calls `useAuthStore.signUp` → `registerAuthUser` → Supabase `signUp`.
 5. On success, app reads new **auth user id**, then:
    - `createUserProfile` → `user_profiles`
    - `createUserPreferences` → `user_preferences` (defaults e.g. discoverable, distance radius)
@@ -52,9 +52,10 @@ What a **person using the app** can do today, the **order of steps**, which part
 **Steps**
 
 1. User enters email + password on **Login**.
-2. `loginAuthUser` → `signInWithPassword`.
+2. `useAuthStore.signIn` → `loginAuthUser` → `signInWithPassword`.
 3. On success, `router.replace('/(tabs)')`.
-4. On next launch, `SessionGate` reads session → user lands in **tabs** if session valid.
+4. On next launch, `SessionGate` hydrates `useAuthStore` from the Supabase
+   session → user lands in **tabs** if session valid.
 
 **Requirement met:** authenticated access and navigation gate.
 
@@ -160,7 +161,8 @@ Routes under `app/preferences/` (e.g. filtering, interests, sexual).
 
 - Theme: **light/dark** via `ThemeContext`.
 - Toggles (notifications, online status, location visibility, etc.): mostly **local** `useState` unless wired to backend.
-- **Logout:** confirmation → `logoutAuthUser` → alert → `router.replace('/(auth)/login')`.
+- **Logout:** confirmation → `useAuthStore.signOut` → `logoutAuthUser` →
+  clear auth state → `router.replace('/(auth)/login')`.
 - **Delete account:** confirmation → currently **`signOut` only** in the destructive path shown in settings — **does not** delete auth user or rows unless you add server logic.
 
 **Requirement met:** logout and settings shell.
