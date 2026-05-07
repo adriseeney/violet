@@ -25,7 +25,10 @@ export default function Signup() {
 
 
   const handleSignup = async () => {
-    if (!email || !password || !username ) {
+    const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
+
+    if (!trimmedEmail || !password || !trimmedUsername) {
       setError("Please fill in all required fields");
       return;
     }
@@ -40,8 +43,9 @@ export default function Signup() {
   
     try {
       const authResponse = await signUp({
-        email,
+        email: trimmedEmail,
         password,
+        username: trimmedUsername,
       });
   
       if (!authResponse.success) {
@@ -55,12 +59,17 @@ export default function Signup() {
         setError("User account created, but no user ID was returned.");
         return;
       }
+
+      if (!authResponse.data.session) {
+        setError("Account created. Please confirm your email, then log in.");
+        return;
+      }
   
       const profileResponse = await createUserProfile({
         id: authUserId,
-        email,
-        username,
-        display_name: username,
+        email: trimmedEmail,
+        username: trimmedUsername,
+        display_name: trimmedUsername,
       });
   
       if (!profileResponse.success) {

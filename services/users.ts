@@ -39,11 +39,12 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
   try {
     const { data, error } = await supabaseConfig
       .from("user_profiles")
-      .insert([
+      .upsert(
         {
           id: payload.id,
           email: payload.email,
-          display_name: payload.display_name ?? null,
+          username: payload.username,
+          display_name: payload.display_name ?? payload.username,
           bio: payload.bio ?? null,
           date_of_birth: payload.date_of_birth ?? null,
           gender_identity: payload.gender_identity ?? null,
@@ -51,7 +52,8 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
           location_state: payload.location_state ?? null,
           profile_picture_url: payload.profile_picture_url ?? null,
         },
-      ])
+        { onConflict: "id" },
+      )
       .select()
       .single();
 
@@ -81,7 +83,7 @@ export const createUserPreferences = async (
   try {
     const { data, error } = await supabaseConfig
       .from("user_preferences")
-      .insert([
+      .upsert(
         {
           user_id: payload.user_id,
           sexual_preference: payload.sexual_preference ?? null,
@@ -93,7 +95,8 @@ export const createUserPreferences = async (
           show_me: payload.show_me ?? null,
           is_discoverable: payload.is_discoverable ?? true,
         },
-      ])
+        { onConflict: "user_id" },
+      )
       .select()
       .single();
 
