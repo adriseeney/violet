@@ -18,7 +18,7 @@ import {
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { supabaseConfig } from '@/config/supabase-config';
 import { LocationProvider } from '@/contexts/location-context';
-
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -31,27 +31,13 @@ function SessionGate() {
   const hydrateSession = useAuthStore((state) => state.hydrateSession);
   const setSession = useAuthStore((state) => state.setSession);
   const [checkingSession, setCheckingSession] = useState(true);
-  const hasLoadedSession = useRef(false);
-
 
   useEffect(() => {
     let isMounted = true;
 
     const loadSession = async () => {
       try {
-        const {
-          data: { session },
-          error, 
-        } = await supabaseConfig.auth.getSession();
-
-        if (error) {
-          throw error;
-        }
-
-<<<<<<< HEAD
-        if (!isMounted) return;
-        
-        setSession(session ?? null);
+        await hydrateSession();
       } catch (error) {
         console.error('Error loading session:', error);
       } finally {
@@ -59,25 +45,15 @@ function SessionGate() {
           setCheckingSession(false);
         }
       }
-=======
-      setSession(session);
-      setCheckingSession(false);
-
-      console.log("INITIAL SESSION:", session);
->>>>>>> origin/fix/auth-routing-bugs
     };
 
     loadSession();
 
     const {
       data: { subscription },
-    } = supabaseConfig.auth.onAuthStateChange((event, session) => {
-      console.log("AUTH EVENT:", event);
-      console.log("AUTH SESSION:", session);
-    
+    } = supabaseConfig.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
-    
-      setSession(session);
+      setSession(session ?? null);
     });
 
     return () => {
@@ -87,19 +63,14 @@ function SessionGate() {
   }, [hydrateSession, setSession]);
 
   useEffect(() => {
-    console.log("ROUTE GUARD:", {
-      session,
-      checkingSession,
-      segments,
-      rootKey: rootNavigationState?.key,
-    });
     if (!rootNavigationState?.key || checkingSession) {
       return;
     }
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (session && inAuthGroup) {
+    if (user && !inTabsGroup) {
       router.replace('/(tabs)');
     } else if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
@@ -138,7 +109,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <LocationProvider>
-      <SessionGate />
+        <SessionGate />
       </LocationProvider>
       <StatusBar style="light" />
     </ThemeProvider>
