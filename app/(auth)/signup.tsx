@@ -23,7 +23,10 @@ export default function Signup() {
 
 
   const handleSignup = async () => {
-    if (!email || !password || !username ) {
+    const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
+
+    if (!trimmedEmail || !password || !trimmedUsername) {
       setError("Please fill in all required fields");
       return;
     }
@@ -62,9 +65,9 @@ export default function Signup() {
   
       const profileResponse = await createUserProfile({
         id: authUserId,
-        email,
-        username,
-        display_name: username,
+        email: trimmedEmail,
+        username: trimmedUsername,
+        display_name: trimmedUsername,
       });
   
       if (!profileResponse.success) {

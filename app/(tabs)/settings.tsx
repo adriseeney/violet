@@ -17,7 +17,6 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [showOnline, setShowOnline] = useState(true);
 
-<<<<<<< HEAD
   const confirmOnWeb = (message: string) => {
     const confirm = (globalThis as { confirm?: (message?: string) => boolean }).confirm;
 
@@ -91,66 +90,9 @@ export default function SettingsScreen() {
           onPress: async () => {
             await runSignOut('Action failed');
           },
-=======
-  const runLogout = async () => {
-    const response = await logoutAuthUser();
-
-    if (!response.success) {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.alert(`Could not sign out: ${response.message}`);
-      } else {
-        Alert.alert('Could not sign out', response.message);
-      }
-      return;
-    }
-
-    router.replace('/(auth)/login');
-  };
-
-  const handleLogout = () => {
-    const message = 'Are you sure you want to logout?';
-
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(message)) {
-        void runLogout();
-      }
-      return;
-    }
-
-    Alert.alert('Logout', message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: () => {
-          void runLogout();
         },
-      },
-    ]);
-  };
-
-  const handleDeleteAccount = () => {
-    const message =
-      'Are you sure you want to delete your account? This action cannot be undone.';
-
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(message)) {
-        void runLogout();
-      }
-      return;
-    }
-
-    Alert.alert('Delete Account', message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void runLogout();
->>>>>>> origin/fix/auth-routing-bugs
-        },
-      },
-    ]);
+      ]
+    );
   };
 
   const toggleLocationVisibility = () => {
