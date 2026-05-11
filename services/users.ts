@@ -4,14 +4,15 @@ import type { User } from "@/types/user";
 export interface IUserProfilePayload {
   id: string;
   email: string;
-  username: string;
   display_name?: string | null;
   bio?: string | null;
-  date_of_birth?: string | null;
-  gender_identity?: string | null;
+  date_of_birth?: string | null
   location_city?: string | null;
   location_state?: string | null;
   profile_picture_url?: string | null;
+  height_in?: number | null;
+  weight_lb?: number | null;
+  ethnicity?: string | null;
 }
 
 export interface IUserPreferencesPayload {
@@ -43,14 +44,15 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
         {
           id: payload.id,
           email: payload.email,
-          username: payload.username,
-          display_name: payload.display_name ?? payload.username,
+          display_name: payload.display_name ?? null,
           bio: payload.bio ?? null,
           date_of_birth: payload.date_of_birth ?? null,
-          gender_identity: payload.gender_identity ?? null,
           location_city: payload.location_city ?? null,
           location_state: payload.location_state ?? null,
           profile_picture_url: payload.profile_picture_url ?? null,
+          height_in: payload.height_in ?? null,
+          weight_lb: payload.weight_lb ?? null,
+          ethnicity: payload.ethnicity ?? null,
         },
         { onConflict: "id" },
       )

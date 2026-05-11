@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
 
-const PLACEHOLDER_PHOTO = 'https://via.placeholder.com/400x500?text=Add+photo';
+const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
 
 function strField(row: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
