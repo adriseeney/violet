@@ -1,4 +1,5 @@
 import { supabaseConfig } from "@/config/supabase-config";
+import { logSupabaseError } from "@/utils/logSupabaseError";
 
 export const registerAuthUser = async (payload: {
   email: string;
@@ -18,6 +19,7 @@ export const registerAuthUser = async (payload: {
     });
 
     if (error) {
+      logSupabaseError("registerAuthUser auth.signUp", error);
       throw new Error(error.message);
     }
 
@@ -52,6 +54,7 @@ export const loginAuthUser = async (payload: {
     });
 
     if (error) {
+      logSupabaseError("loginAuthUser auth.signInWithPassword", error);
       throw new Error(error.message);
     }
 
@@ -76,6 +79,7 @@ export const getCurrentUserSession = async () => {
     const { data, error } = await supabaseConfig.auth.getSession();
 
     if (error) {
+      logSupabaseError("getCurrentUserSession auth.getSession", error);
       throw new Error(error.message);
     }
 
@@ -90,6 +94,7 @@ export const logoutAuthUser = async () => {
     const { error } = await supabaseConfig.auth.signOut();
 
     if (error) {
+      logSupabaseError("logoutAuthUser auth.signOut", error);
       return {
         success: false,
         message: error.message,
