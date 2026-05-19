@@ -23,7 +23,7 @@ export default function ExploreScreen() {
   const handleCityPress = (cityName: string) => {
     // In a real app, this would navigate to a city-specific browse screen
     router.push({
-      pathname: '/(tabs)/',
+      pathname: '/(tabs)',
       params: { city: cityName }
     });
   };
