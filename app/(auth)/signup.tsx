@@ -15,7 +15,7 @@ export default function Signup() {
   const signUp = useAuthStore((state) => state.signUp);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [display_name, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,7 +64,7 @@ export default function Signup() {
       const profileResponse = await createUserProfile({
         id: authUserId,
         email: trimmedEmail,
-        display_name: trimmedUsername,
+        display_name: display_name.trim() || null,
       });
   
       if (!profileResponse.success) {
@@ -157,7 +157,7 @@ export default function Signup() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Username</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Display Name</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -167,10 +167,10 @@ export default function Signup() {
                     borderColor: colors.border
                   }
                 ]}
-                placeholder="Choose a username"
+                placeholder="Choose a Display Name"
                 placeholderTextColor={colors.textSecondary}
-                value={username}
-                onChangeText={setUsername}
+                value={display_name}
+                onChangeText={setDisplayName}
                 autoCapitalize="none"
               />
             </View>

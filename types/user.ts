@@ -1,13 +1,16 @@
 export interface User {
   id: string;
-  username: string;
+  name: string;
+  display_name: string;
+  email: string;
   age: number;
   gender: string;
   /** Distance from the viewer in miles */
   distance: number;
   bio?: string;
-  profilePicture: string;
-  location?: string;
+  profilePicture?: string;
+  locationCity?: string;
+  locationState?: string;
   interests?: string[];
   lastActive?: string;
   isOnline?: boolean;
@@ -21,8 +24,8 @@ export interface User {
   safetyPractices?: string; // Safety preferences
   showPreferencesPublicly?: boolean; // Whether to show preferences on profile
   // Additional profile information
-  height?: number; // Height in cm
-  weight?: number; // Weight in kg
+  height?: number; // Height in inches
+  weight?: number; // Weight in lbs
   bodyType?: string; // Body type description
   ethnicity?: string; // Ethnicity information
   relationshipStatus?: string; // Current relationship status

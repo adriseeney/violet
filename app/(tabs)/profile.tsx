@@ -11,6 +11,8 @@ import IntimacyPreferences from '@/components/IntimacyPreferences';
 import { useEffect, useState } from 'react';
 import { getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { supabaseConfig } from '@/config/supabase-config';
 
 const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
 
@@ -64,11 +66,11 @@ export default function ProfileScreen() {
       setProfileImage(photoList[0]);
 
       setProfileInfo({
-        name: u.username,
+        name: u.display_name ?? '',
         age: u.age > 0 ? String(u.age) : '',
         bio: u.bio ?? '',
-        height: strField(r, 'height_cm', 'height'),
-        weight: strField(r, 'weight_kg', 'weight'),
+        height: strField(r, 'height_in', 'height'),
+        weight: strField(r, 'weight_lb', 'weight'),
         ethnicity: strField(r, 'ethnicity'),
         location:
           u.location ??
@@ -155,16 +157,39 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleSaveProfile = () => {
+
+
+  const handleSaveProfile = async () => {
     setIsLoading(true);
-    
-    // Simulate API call to save profile
-    setTimeout(() => {
+    try {
+      const {error } = await supabaseConfig.from('user_profiles').upsert({
+          name: profileInfo.name,
+          email: profileUser?.email,
+          bio: profileInfo.bio,
+          date_of_birth: profileUser?.age,
+          location_city: profileUser?.locationCity,
+          location_state: profileUser?.locationState,
+          profile_picture_url: profileImage,
+          height_in: profileInfo.height,
+          weight_lb: profileInfo.weight,
+          ethnicity: profileInfo.ethnicity,
+        }).select().single();
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert("Success", "Your profile has been updated!");
+
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "An unexpected error occurred.");
+    } finally {
       setIsLoading(false);
       setIsEditing(false);
-      Alert.alert("Success", "Your profile has been updated!");
-    }, 1500);
+    }
   };
+
+     
 
   const ProfileHeader = () => (
     <View style={styles.header}>
