@@ -9,7 +9,7 @@ import { ProfileAttribute } from '@/components/ProfileAttribute';
 import * as ImagePicker from 'expo-image-picker';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
 import { useEffect, useState } from 'react';
-import { getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
+import { createUserProfile, getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
 
 const PLACEHOLDER_PHOTO = 'https://via.placeholder.com/400x500?text=Add+photo';
@@ -20,6 +20,69 @@ function strField(row: Record<string, unknown>, ...keys: string[]): string {
     if (v != null && String(v).trim() !== '') return String(v);
   }
   return '';
+}
+
+function numberField(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(Math.round(value));
+    }
+
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
+
+function numberFieldWithConversion(
+  row: Record<string, unknown>,
+  primaryKey: string,
+  fallbackKey: string,
+  convertFallback: (value: number) => number,
+): string {
+  const primary = numberField(row, primaryKey);
+  if (primary) return primary;
+
+  const fallback = row[fallbackKey];
+  if (typeof fallback === 'number' && Number.isFinite(fallback)) {
+    return String(Math.round(convertFallback(fallback)));
+  }
+
+  return '';
+}
+
+function parseOptionalInteger(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function dateOfBirthFromAge(age: string): string | null {
+  const parsedAge = parseOptionalInteger(age);
+  if (!parsedAge || parsedAge < 0) return null;
+
+  const birthYear = new Date().getFullYear() - parsedAge;
+  return `${birthYear}-01-01`;
+}
+
+function splitLocation(value: string): {
+  location_city: string | null;
+  location_state: string | null;
+} {
+  const parts = value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return {
+    location_city: parts[0] ?? null,
+    location_state: parts.length > 1 ? parts.slice(1).join(', ') : null,
+  };
 }
 
 export default function ProfileScreen() {
@@ -67,8 +130,8 @@ export default function ProfileScreen() {
         name: u.username,
         age: u.age > 0 ? String(u.age) : '',
         bio: u.bio ?? '',
-        height: strField(r, 'height_cm', 'height'),
-        weight: strField(r, 'weight_kg', 'weight'),
+        height: numberFieldWithConversion(r, 'height_cm', 'height_in', (value) => value * 2.54),
+        weight: numberFieldWithConversion(r, 'weight_kg', 'weight_lbs', (value) => value * 0.453592),
         ethnicity: strField(r, 'ethnicity'),
         location:
           u.location ??
@@ -155,15 +218,44 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setIsLoading(true);
-    
-    // Simulate API call to save profile
-    setTimeout(() => {
-      setIsLoading(false);
+
+    try {
+      const locationFields = splitLocation(profileInfo.location);
+      const profilePictureUrl =
+        profileImage && profileImage !== PLACEHOLDER_PHOTO && !profileImage.startsWith('file:')
+          ? profileImage
+          : undefined;
+
+      const response = await createUserProfile({
+        display_name: profileInfo.name,
+        bio: profileInfo.bio,
+        date_of_birth: dateOfBirthFromAge(profileInfo.age),
+        height_cm: parseOptionalInteger(profileInfo.height),
+        weight_kg: parseOptionalInteger(profileInfo.weight),
+        ethnicity: profileInfo.ethnicity,
+        profile_picture_url: profilePictureUrl,
+        ...locationFields,
+      });
+
+      if (!response.success) {
+        Alert.alert("Error", response.message);
+        return;
+      }
+
+      if (response.data) {
+        const row = response.data as Record<string, unknown>;
+        setProfileUser(mapUserProfileRowToUser(row));
+      }
+
       setIsEditing(false);
       Alert.alert("Success", "Your profile has been updated!");
-    }, 1500);
+    } catch {
+      Alert.alert("Error", "Error saving profile. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const ProfileHeader = () => (

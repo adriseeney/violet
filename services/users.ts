@@ -1,10 +1,10 @@
 import { supabaseConfig } from "@/config/supabase-config";
 import type { User } from "@/types/user";
+import { logSupabaseError } from "@/utils/logSupabaseError";
 
 export interface IUserProfilePayload {
-  id: string;
-  email: string;
-  username: string;
+  email?: string | null;
+  username?: string | null;
   display_name?: string | null;
   bio?: string | null;
   date_of_birth?: string | null;
@@ -12,6 +12,9 @@ export interface IUserProfilePayload {
   location_city?: string | null;
   location_state?: string | null;
   profile_picture_url?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  ethnicity?: string | null;
 }
 
 export interface IUserPreferencesPayload {
@@ -35,29 +38,135 @@ export interface INearbyProfile {
   distance_miles?: number | null;
 }
 
+type UserProfileUpsert = {
+  id: string;
+  email: string;
+  updated_at: string;
+  username?: string | null;
+  display_name?: string | null;
+  bio?: string | null;
+  date_of_birth?: string | null;
+  gender_identity?: string | null;
+  location_city?: string | null;
+  location_state?: string | null;
+  profile_picture_url?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  ethnicity?: string | null;
+};
+
+function normalizeText(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeDate(value: string | null | undefined): string | null {
+  const trimmed = normalizeText(value);
+  if (!trimmed) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeNumber(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function setIfProvided<T extends keyof UserProfileUpsert>(
+  row: UserProfileUpsert,
+  column: T,
+  value: UserProfileUpsert[T] | undefined,
+) {
+  if (value !== undefined) {
+    row[column] = value;
+  }
+}
+
+function setTextIfProvided<T extends keyof UserProfileUpsert>(
+  row: UserProfileUpsert,
+  column: T,
+  value: string | null | undefined,
+) {
+  if (value !== undefined) {
+    setIfProvided(row, column, normalizeText(value) as UserProfileUpsert[T]);
+  }
+}
+
+function setDateIfProvided<T extends keyof UserProfileUpsert>(
+  row: UserProfileUpsert,
+  column: T,
+  value: string | null | undefined,
+) {
+  if (value !== undefined) {
+    setIfProvided(row, column, normalizeDate(value) as UserProfileUpsert[T]);
+  }
+}
+
+function setNumberIfProvided<T extends keyof UserProfileUpsert>(
+  row: UserProfileUpsert,
+  column: T,
+  value: number | null | undefined,
+) {
+  if (value !== undefined) {
+    setIfProvided(row, column, normalizeNumber(value) as UserProfileUpsert[T]);
+  }
+}
+
 export const createUserProfile = async (payload: IUserProfilePayload) => {
   try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseConfig.auth.getUser();
+
+    if (userError) {
+      logSupabaseError("createUserProfile auth.getUser", userError);
+      throw new Error(userError.message);
+    }
+
+    if (!user?.id) {
+      throw new Error("No authenticated user found.");
+    }
+
+    const email = normalizeText(payload.email) ?? normalizeText(user.email);
+
+    if (!email) {
+      throw new Error("No email address found for the authenticated user.");
+    }
+
+    const row: UserProfileUpsert = {
+      id: user.id,
+      email,
+      updated_at: new Date().toISOString(),
+    };
+
+    setTextIfProvided(row, "username", payload.username);
+    setTextIfProvided(row, "display_name", payload.display_name);
+    setTextIfProvided(row, "bio", payload.bio);
+    setDateIfProvided(row, "date_of_birth", payload.date_of_birth);
+    setTextIfProvided(row, "gender_identity", payload.gender_identity);
+    setTextIfProvided(row, "location_city", payload.location_city);
+    setTextIfProvided(row, "location_state", payload.location_state);
+    setTextIfProvided(row, "profile_picture_url", payload.profile_picture_url);
+    setNumberIfProvided(row, "height_cm", payload.height_cm);
+    setNumberIfProvided(row, "weight_kg", payload.weight_kg);
+    setTextIfProvided(row, "ethnicity", payload.ethnicity);
+
     const { data, error } = await supabaseConfig
       .from("user_profiles")
-      .upsert(
-        {
-          id: payload.id,
-          email: payload.email,
-          username: payload.username,
-          display_name: payload.display_name ?? payload.username,
-          bio: payload.bio ?? null,
-          date_of_birth: payload.date_of_birth ?? null,
-          gender_identity: payload.gender_identity ?? null,
-          location_city: payload.location_city ?? null,
-          location_state: payload.location_state ?? null,
-          profile_picture_url: payload.profile_picture_url ?? null,
-        },
-        { onConflict: "id" },
-      )
+      .upsert(row, { onConflict: "id" })
       .select()
       .single();
 
     if (error) {
+      logSupabaseError("createUserProfile upsert user_profiles", error);
       throw new Error(error.message);
     }
 
@@ -101,6 +210,7 @@ export const createUserPreferences = async (
       .single();
 
     if (error) {
+      logSupabaseError("createUserPreferences upsert user_preferences", error);
       throw new Error(error.message);
     }
 
@@ -204,6 +314,7 @@ export const getCurrentUserProfile = async () => {
     } = await supabaseConfig.auth.getSession();
 
     if (sessionError) {
+      logSupabaseError("getCurrentUserProfile auth.getSession", sessionError);
       throw new Error(sessionError.message);
     }
 
@@ -218,6 +329,7 @@ export const getCurrentUserProfile = async () => {
       .single();
 
     if (error) {
+      logSupabaseError("getCurrentUserProfile select user_profiles", error);
       throw new Error(error.message);
     }
 
@@ -238,6 +350,7 @@ export const updateCurrentUserLocation = async (
     } = await supabaseConfig.auth.getSession();
 
     if (sessionError) {
+      logSupabaseError("updateCurrentUserLocation auth.getSession", sessionError);
       throw new Error(sessionError.message);
     }
 
@@ -252,6 +365,7 @@ export const updateCurrentUserLocation = async (
     });
 
     if (error) {
+      logSupabaseError("updateCurrentUserLocation rpc update_user_location", error);
       throw new Error(error.message);
     }
 
@@ -282,6 +396,7 @@ export const getNearbyProfiles = async (
     } = await supabaseConfig.auth.getSession();
 
     if (sessionError) {
+      logSupabaseError("getNearbyProfiles auth.getSession", sessionError);
       throw new Error(sessionError.message);
     }
 
@@ -296,6 +411,7 @@ export const getNearbyProfiles = async (
     });
 
     if (error) {
+      logSupabaseError("getNearbyProfiles rpc nearby_profiles", error);
       throw new Error(error.message);
     }
 

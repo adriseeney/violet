@@ -64,7 +64,6 @@ export default function Signup() {
       }
   
       const profileResponse = await createUserProfile({
-        id: authUserId,
         email: trimmedEmail,
         username: trimmedUsername,
         display_name: trimmedUsername,
