@@ -16,7 +16,7 @@ type SignInPayload = {
 };
 
 type SignUpPayload = SignInPayload & {
-  username?: string;
+  displayName?: string;
 };
 
 type SignInResult = Awaited<ReturnType<typeof loginAuthUser>>;
