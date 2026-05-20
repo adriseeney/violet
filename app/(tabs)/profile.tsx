@@ -8,7 +8,7 @@ import { Edit2, Plus, Trash2, Settings, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
 import { useEffect, useState } from 'react';
-import { uploadCurrentUserProfilePhoto } from '@/services/profilePhotos';
+import { getCurrentUserProfilePhotos, saveCurrentUserProfilePhotos } from '@/services/profilePhotos';
 import { createUserProfile, getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
 
@@ -89,6 +89,10 @@ function firstRealPhoto(photoList: string[]): string | undefined {
   return photoList.find((photo) => photo && photo !== PLACEHOLDER_PHOTO);
 }
 
+function realPhotos(photoList: string[]): string[] {
+  return photoList.filter((photo) => photo && photo !== PLACEHOLDER_PHOTO);
+}
+
 function isRemotePhoto(uri: string): boolean {
   return /^https?:\/\//i.test(uri);
 }
@@ -129,8 +133,16 @@ export default function ProfileScreen() {
       setProfileUser(u);
 
       const pic = (r.profile_picture_url as string | null | undefined)?.trim();
-      const photoList =
-        pic && pic.length > 0 ? [pic] : [PLACEHOLDER_PHOTO];
+      const photosResponse = await getCurrentUserProfilePhotos();
+      const persistedPhotos =
+        photosResponse.success && photosResponse.data.length > 0
+          ? photosResponse.data.map((photo) => photo.url)
+          : [];
+      const photoList = persistedPhotos.length > 0
+        ? persistedPhotos
+        : pic && pic.length > 0
+          ? [pic]
+          : [PLACEHOLDER_PHOTO];
       setPhotos(photoList);
       setProfileImage(photoList[0]);
 
@@ -154,10 +166,10 @@ export default function ProfileScreen() {
   }, []);
 
   const handleChange = (field: string, value: string) => {
-    setProfileInfo({
-      ...profileInfo,
+    setProfileInfo((current) => ({
+      ...current,
       [field]: value
-    });
+    }));
   };
 
   const handleAddPhoto = async () => {
@@ -177,9 +189,9 @@ export default function ProfileScreen() {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const imageUri = result.assets[0].uri;
-      setProfileImage(imageUri);
 
       if (photos.length === 1 && photos[0] === PLACEHOLDER_PHOTO) {
+        setProfileImage(imageUri);
         setPhotos([imageUri]);
         return;
       }
@@ -209,6 +221,8 @@ export default function ProfileScreen() {
           onPress: () => {
             const newPhotos = [...photos];
             newPhotos.splice(index, 1);
+            const nextProfilePhoto = firstRealPhoto(newPhotos) ?? null;
+            setProfileImage(nextProfilePhoto);
             setPhotos(newPhotos);
           }
         }
@@ -221,27 +235,27 @@ export default function ProfileScreen() {
 
     try {
       const locationFields = splitLocation(profileInfo.location);
-      const selectedProfilePhoto =
-        profileImage && profileImage !== PLACEHOLDER_PHOTO
-          ? profileImage
-          : firstRealPhoto(photos);
-      let profilePictureUrl =
-        selectedProfilePhoto && isRemotePhoto(selectedProfilePhoto)
-          ? selectedProfilePhoto
-          : undefined;
+      const photoUris = realPhotos(photos);
+      let savedPhotoUrls = photoUris;
+      let profilePictureUrl = firstRealPhoto(savedPhotoUrls);
       let photoWarning: string | undefined;
 
-      if (selectedProfilePhoto && !isRemotePhoto(selectedProfilePhoto)) {
-        const uploadResponse = await uploadCurrentUserProfilePhoto(selectedProfilePhoto);
+      if (photoUris.length > 0) {
+        const photosResponse = await saveCurrentUserProfilePhotos(photoUris);
 
-        if (uploadResponse.success && uploadResponse.data?.publicUrl) {
-          profilePictureUrl = uploadResponse.data.publicUrl;
-          setProfileImage(profilePictureUrl);
-          setPhotos([profilePictureUrl]);
+        if (photosResponse.success) {
+          savedPhotoUrls = photosResponse.data.map((photo) => photo.url);
+          profilePictureUrl = firstRealPhoto(savedPhotoUrls);
+          setPhotos(savedPhotoUrls.length > 0 ? savedPhotoUrls : [PLACEHOLDER_PHOTO]);
+          setProfileImage(profilePictureUrl ?? null);
         } else {
           photoWarning =
-            uploadResponse.message ??
-            'The profile details were saved, but the selected photo could not be uploaded.';
+            photosResponse.message ??
+            'The profile details were saved, but the selected photos could not be uploaded.';
+          profilePictureUrl =
+            profileImage && profileImage !== PLACEHOLDER_PHOTO && isRemotePhoto(profileImage)
+              ? profileImage
+              : undefined;
         }
       }
 
@@ -266,7 +280,7 @@ export default function ProfileScreen() {
         setProfileUser(mapUserProfileRowToUser(row));
 
         const savedPhoto = (row.profile_picture_url as string | null | undefined)?.trim();
-        if (savedPhoto) {
+        if (savedPhoto && savedPhotoUrls.length === 0) {
           setProfileImage(savedPhoto);
           setPhotos([savedPhoto]);
         }
@@ -284,7 +298,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const ProfileHeader = () => (
+  const renderProfileHeader = () => (
     <View style={styles.header}>
       <Text style={[styles.headerTitle, { color: colors.text }]}>My Profile</Text>
       <TouchableOpacity 
@@ -296,7 +310,7 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const ProfilePhotos = () => (
+  const renderProfilePhotos = () => (
     <View style={styles.photosSection}>
       <ScrollView 
         horizontal 
@@ -333,7 +347,7 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const ProfileInfo = () => (
+  const renderProfileInfo = () => (
     <View style={[styles.infoSection, { backgroundColor: colors.cardBackground }]}>
       {isEditing ? (
         <>
@@ -503,15 +517,15 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
-        <ProfileHeader />
+        {renderProfileHeader()}
         
         <ScrollView 
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <ProfilePhotos />
-          <ProfileInfo />
+          {renderProfilePhotos()}
+          {renderProfileInfo()}
           
           {!isEditing && intimacyUser && (
             <View style={styles.preferencesSection}>

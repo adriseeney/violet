@@ -3,6 +3,11 @@ import { logSupabaseError } from "@/utils/logSupabaseError";
 
 const PROFILE_PHOTOS_BUCKET = "profile-photos";
 
+type SavedProfilePhoto = {
+  url: string;
+  storagePath: string | null;
+};
+
 function isRemoteUrl(uri: string): boolean {
   return /^https?:\/\//i.test(uri);
 }
@@ -37,6 +42,24 @@ function extensionForContentType(contentType: string): string {
   }
 }
 
+async function getCurrentUserId() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabaseConfig.auth.getUser();
+
+  if (userError) {
+    logSupabaseError("profilePhotos auth.getUser", userError);
+    throw new Error(userError.message);
+  }
+
+  if (!user?.id) {
+    throw new Error("No authenticated user found.");
+  }
+
+  return user.id;
+}
+
 export const uploadCurrentUserProfilePhoto = async (uri: string) => {
   try {
     if (isRemoteUrl(uri)) {
@@ -49,19 +72,7 @@ export const uploadCurrentUserProfilePhoto = async (uri: string) => {
       };
     }
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseConfig.auth.getUser();
-
-    if (userError) {
-      logSupabaseError("uploadCurrentUserProfilePhoto auth.getUser", userError);
-      throw new Error(userError.message);
-    }
-
-    if (!user?.id) {
-      throw new Error("No authenticated user found.");
-    }
+    const userId = await getCurrentUserId();
 
     const fileResponse = await fetch(uri);
     if (!fileResponse.ok) {
@@ -70,7 +81,9 @@ export const uploadCurrentUserProfilePhoto = async (uri: string) => {
 
     const contentType = getContentType(uri, fileResponse);
     const fileExt = extensionForContentType(contentType);
-    const storagePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+    const storagePath = `${userId}/photo-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${fileExt}`;
     const fileBody = await fileResponse.arrayBuffer();
 
     const { error: uploadError } = await supabaseConfig.storage
@@ -106,6 +119,114 @@ export const uploadCurrentUserProfilePhoto = async (uri: string) => {
         error instanceof Error
           ? error.message
           : "An error occurred while uploading the profile photo.",
+    };
+  }
+};
+
+export const getCurrentUserProfilePhotos = async () => {
+  try {
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabaseConfig
+      .from("user_photos")
+      .select("url, storage_path, display_order, is_primary")
+      .eq("user_id", userId)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      logSupabaseError("getCurrentUserProfilePhotos select user_photos", error);
+      throw new Error(error.message);
+    }
+
+    return {
+      success: true,
+      data: (data ?? []).map((photo) => ({
+        url: String(photo.url),
+        storagePath:
+          typeof photo.storage_path === "string" ? photo.storage_path : null,
+      })),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while loading profile photos.",
+      data: [] as SavedProfilePhoto[],
+    };
+  }
+};
+
+export const saveCurrentUserProfilePhotos = async (photoUris: string[]) => {
+  try {
+    const userId = await getCurrentUserId();
+    const realPhotoUris = photoUris.filter(Boolean);
+    const savedPhotos: SavedProfilePhoto[] = [];
+
+    for (const uri of realPhotoUris) {
+      if (isRemoteUrl(uri)) {
+        savedPhotos.push({ url: uri, storagePath: null });
+        continue;
+      }
+
+      const uploadResponse = await uploadCurrentUserProfilePhoto(uri);
+
+      if (!uploadResponse.success || !uploadResponse.data?.publicUrl) {
+        throw new Error(
+          uploadResponse.message ?? "A profile photo could not be uploaded.",
+        );
+      }
+
+      savedPhotos.push({
+        url: uploadResponse.data.publicUrl,
+        storagePath: uploadResponse.data.storagePath,
+      });
+    }
+
+    const { error: deleteError } = await supabaseConfig
+      .from("user_photos")
+      .delete()
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      logSupabaseError("saveCurrentUserProfilePhotos delete user_photos", deleteError);
+      throw new Error(deleteError.message);
+    }
+
+    if (savedPhotos.length > 0) {
+      const { error: insertError } = await supabaseConfig
+        .from("user_photos")
+        .insert(
+          savedPhotos.map((photo, index) => ({
+            user_id: userId,
+            url: photo.url,
+            storage_path: photo.storagePath,
+            display_order: index,
+            is_primary: index === 0,
+            is_private: false,
+          })),
+        );
+
+      if (insertError) {
+        logSupabaseError("saveCurrentUserProfilePhotos insert user_photos", insertError);
+        throw new Error(insertError.message);
+      }
+    }
+
+    return {
+      success: true,
+      data: savedPhotos,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while saving profile photos.",
+      data: [] as SavedProfilePhoto[],
     };
   }
 };
