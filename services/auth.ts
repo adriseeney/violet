@@ -4,16 +4,17 @@ import { logSupabaseError } from "@/utils/logSupabaseError";
 export const registerAuthUser = async (payload: {
   email: string;
   password: string;
-  username?: string;
+  displayName?: string;
 }) => {
   try {
+    const displayName = payload.displayName?.trim();
+
     const { data, error } = await supabaseConfig.auth.signUp({
       email: payload.email,
       password: payload.password,
       options: {
         data: {
-          username: payload.username,
-          display_name: payload.username,
+          display_name: displayName,
         },
       },
     });
