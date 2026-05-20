@@ -76,11 +76,14 @@ set search_path = public
 as $$
 declare
   metadata_username text;
+  metadata_display_name text;
   profile_username text;
 begin
   metadata_username := nullif(trim(new.raw_user_meta_data ->> 'username'), '');
+  metadata_display_name := nullif(trim(new.raw_user_meta_data ->> 'display_name'), '');
   profile_username := coalesce(
     metadata_username,
+    metadata_display_name,
     nullif(split_part(new.email, '@', 1), ''),
     'user_' || replace(left(new.id::text, 8), '-', '')
   );
@@ -95,7 +98,7 @@ begin
     new.id,
     new.email,
     profile_username,
-    coalesce(nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''), profile_username)
+    coalesce(metadata_display_name, profile_username)
   )
   on conflict (id) do update
   set
