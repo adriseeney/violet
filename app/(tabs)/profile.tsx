@@ -1,14 +1,14 @@
 
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Camera, MapPin, MapPinOff, Edit2, Image as ImageIcon, Plus, Trash2, Settings, Check } from 'lucide-react-native';
-import { ProfileAttribute } from '@/components/ProfileAttribute';
+import { Edit2, Plus, Trash2, Settings, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
 import { useEffect, useState } from 'react';
+import { uploadCurrentUserProfilePhoto } from '@/services/profilePhotos';
 import { createUserProfile, getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
 
@@ -85,6 +85,14 @@ function splitLocation(value: string): {
   };
 }
 
+function firstRealPhoto(photoList: string[]): string | undefined {
+  return photoList.find((photo) => photo && photo !== PLACEHOLDER_PHOTO);
+}
+
+function isRemotePhoto(uri: string): boolean {
+  return /^https?:\/\//i.test(uri);
+}
+
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const [profileLoading, setProfileLoading] = useState(true);
@@ -145,24 +153,6 @@ export default function ProfileScreen() {
     };
   }, []);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    
-    if (!result.canceled) {
-      const imageUri = result.assets[0].uri;
-      setProfileImage(imageUri);
-      // Update the first photo in the array
-      const newPhotos = [...photos];
-      newPhotos[0] = imageUri;
-      setPhotos(newPhotos);
-    }
-  };
-
   const handleChange = (field: string, value: string) => {
     setProfileInfo({
       ...profileInfo,
@@ -186,7 +176,15 @@ export default function ProfileScreen() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setPhotos([...photos, result.assets[0].uri]);
+      const imageUri = result.assets[0].uri;
+      setProfileImage(imageUri);
+
+      if (photos.length === 1 && photos[0] === PLACEHOLDER_PHOTO) {
+        setPhotos([imageUri]);
+        return;
+      }
+
+      setPhotos([...photos, imageUri]);
     }
   };
 
@@ -223,10 +221,29 @@ export default function ProfileScreen() {
 
     try {
       const locationFields = splitLocation(profileInfo.location);
-      const profilePictureUrl =
-        profileImage && profileImage !== PLACEHOLDER_PHOTO && !profileImage.startsWith('file:')
+      const selectedProfilePhoto =
+        profileImage && profileImage !== PLACEHOLDER_PHOTO
           ? profileImage
+          : firstRealPhoto(photos);
+      let profilePictureUrl =
+        selectedProfilePhoto && isRemotePhoto(selectedProfilePhoto)
+          ? selectedProfilePhoto
           : undefined;
+      let photoWarning: string | undefined;
+
+      if (selectedProfilePhoto && !isRemotePhoto(selectedProfilePhoto)) {
+        const uploadResponse = await uploadCurrentUserProfilePhoto(selectedProfilePhoto);
+
+        if (uploadResponse.success && uploadResponse.data?.publicUrl) {
+          profilePictureUrl = uploadResponse.data.publicUrl;
+          setProfileImage(profilePictureUrl);
+          setPhotos([profilePictureUrl]);
+        } else {
+          photoWarning =
+            uploadResponse.message ??
+            'The profile details were saved, but the selected photo could not be uploaded.';
+        }
+      }
 
       const response = await createUserProfile({
         display_name: profileInfo.name,
@@ -247,10 +264,19 @@ export default function ProfileScreen() {
       if (response.data) {
         const row = response.data as Record<string, unknown>;
         setProfileUser(mapUserProfileRowToUser(row));
+
+        const savedPhoto = (row.profile_picture_url as string | null | undefined)?.trim();
+        if (savedPhoto) {
+          setProfileImage(savedPhoto);
+          setPhotos([savedPhoto]);
+        }
       }
 
       setIsEditing(false);
-      Alert.alert("Success", "Your profile has been updated!");
+      Alert.alert(
+        photoWarning ? "Profile Details Saved" : "Success",
+        photoWarning ?? "Your profile has been updated!",
+      );
     } catch {
       Alert.alert("Error", "Error saving profile. Please try again.");
     } finally {
