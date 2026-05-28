@@ -206,6 +206,9 @@ export const saveCurrentUserProfilePhotos = async (photoUris: string[]) => {
             display_order: index,
             is_primary: index === 0,
             is_private: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            id: crypto.randomUUID(),
           })),
         );
 

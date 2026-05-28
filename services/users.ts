@@ -31,7 +31,9 @@ export interface IUserPreferencesPayload {
 
 export interface INearbyProfile {
   id: string;
-  username: string;
+  username?: string | null;
+  age?: number | null;
+  gender?: string | null;
   display_name?: string | null;
   bio?: string | null;
   profile_picture_url?: string | null;
