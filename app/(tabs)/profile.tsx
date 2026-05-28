@@ -11,8 +11,9 @@ import { useEffect, useState } from 'react';
 import { getCurrentUserProfilePhotos, saveCurrentUserProfilePhotos } from '@/services/profilePhotos';
 import { createUserProfile, getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
-const PLACEHOLDER_PHOTO = 'https://via.placeholder.com/400x500?text=Add+photo';
+const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
 
 function strField(row: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
@@ -32,23 +33,6 @@ function numberField(row: Record<string, unknown>, ...keys: string[]): string {
     if (typeof value === 'string' && value.trim() !== '') {
       return value.trim();
     }
-  }
-
-  return '';
-}
-
-function numberFieldWithConversion(
-  row: Record<string, unknown>,
-  primaryKey: string,
-  fallbackKey: string,
-  convertFallback: (value: number) => number,
-): string {
-  const primary = numberField(row, primaryKey);
-  if (primary) return primary;
-
-  const fallback = row[fallbackKey];
-  if (typeof fallback === 'number' && Number.isFinite(fallback)) {
-    return String(Math.round(convertFallback(fallback)));
   }
 
   return '';
@@ -99,6 +83,7 @@ function isRemotePhoto(uri: string): boolean {
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
+  const authUser = useAuthStore((state) => state.user);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -147,14 +132,14 @@ export default function ProfileScreen() {
       setProfileImage(photoList[0]);
 
       setProfileInfo({
-        name: u.username,
+        name: u.display_name ?? '',
         age: u.age > 0 ? String(u.age) : '',
         bio: u.bio ?? '',
-        height: numberFieldWithConversion(r, 'height_cm', 'height_in', (value) => value * 2.54),
-        weight: numberFieldWithConversion(r, 'weight_kg', 'weight_lbs', (value) => value * 0.453592),
+        height: numberField(r, 'height_in', 'height'),
+        weight: numberField(r, 'weight_lb', 'weight'),
         ethnicity: strField(r, 'ethnicity'),
         location:
-          u.location ??
+          [u.locationCity, u.locationState].filter(Boolean).join(', ') ||
           [r.location_city, r.location_state].filter(Boolean).join(', '),
       });
 
@@ -234,6 +219,11 @@ export default function ProfileScreen() {
     setIsLoading(true);
 
     try {
+      if (!authUser?.id || !authUser.email) {
+        Alert.alert("Error", "Unable to save profile because your account session is missing.");
+        return;
+      }
+
       const locationFields = splitLocation(profileInfo.location);
       const photoUris = realPhotos(photos);
       let savedPhotoUrls = photoUris;
@@ -260,11 +250,13 @@ export default function ProfileScreen() {
       }
 
       const response = await createUserProfile({
+        id: authUser.id,
+        email: authUser.email,
         display_name: profileInfo.name,
         bio: profileInfo.bio,
         date_of_birth: dateOfBirthFromAge(profileInfo.age),
-        height_cm: parseOptionalInteger(profileInfo.height),
-        weight_kg: parseOptionalInteger(profileInfo.weight),
+        height_in: parseOptionalInteger(profileInfo.height),
+        weight_lb: parseOptionalInteger(profileInfo.weight),
         ethnicity: profileInfo.ethnicity,
         profile_picture_url: profilePictureUrl,
         ...locationFields,

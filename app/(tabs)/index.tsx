@@ -31,14 +31,15 @@ export default function BrowseScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const mapNearbyToUser = (profile: INearbyProfile): User => ({
     id: profile.id,
-    username: profile.display_name || profile.username || 'Unknown',
-    age: 0,
-    gender: '',
+    name: profile.display_name || profile.username || 'Unknown',
+    display_name: profile.display_name || profile.username || 'Unknown',
+    email: '',
+    age: profile.age ?? 0,
+    gender: profile.gender ?? '',
     distance: profile.distance_miles ?? 0,
     bio: profile.bio ?? '',
     profilePicture: profile.profile_picture_url || 'https://via.placeholder.com/300x300?text=User',
@@ -70,19 +71,6 @@ export default function BrowseScreen() {
     }
   }, [permissionStatus, coords?.latitude, coords?.longitude]);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredUsers(users);
-    } else {
-      const filtered = users.filter(
-        (user) =>
-          user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.bio?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    }
-  }, [users, searchQuery]);
-
   const handleRefresh = async () => {
     setRefreshing(true);
 
@@ -94,7 +82,15 @@ export default function BrowseScreen() {
   };
 
   const renderItem = ({ item }: { item: User }) => (
-    <UserCard user={{ ...item, isOnline: item.isOnline ?? false }} />
+    <UserCard
+      user={{
+        id: item.id,
+        profilePicture: item.profilePicture || 'https://via.placeholder.com/300x300?text=User',
+        isOnline: item.isOnline ?? false,
+        distance: item.distance,
+        username: item.display_name || item.name || 'Unknown',
+      }}
+    />
   );
 
   if (locationLoading) {
@@ -179,7 +175,7 @@ export default function BrowseScreen() {
           </View>
         ) : (
           <FlatList
-            data={filteredUsers}
+            data={users}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             numColumns={3}

@@ -15,7 +15,7 @@ export default function Signup() {
   const signUp = useAuthStore((state) => state.signUp);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [display_name, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,9 +24,8 @@ export default function Signup() {
 
   const handleSignup = async () => {
     const trimmedEmail = email.trim();
-    const trimmedUsername = username.trim();
 
-    if (!trimmedEmail || !password || !trimmedUsername) {
+    if (!trimmedEmail || !password ) {
       setError("Please fill in all required fields");
       return;
     }
@@ -42,8 +41,7 @@ export default function Signup() {
     try {
       const authResponse = await signUp({
         email: trimmedEmail,
-        password,
-        username: trimmedUsername,
+        password
       });
   
       if (!authResponse.success) {
@@ -65,8 +63,7 @@ export default function Signup() {
   
       const profileResponse = await createUserProfile({
         email: trimmedEmail,
-        username: trimmedUsername,
-        display_name: trimmedUsername,
+        display_name: display_name.trim() || null,
       });
   
       if (!profileResponse.success) {
@@ -159,7 +156,7 @@ export default function Signup() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Username</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Display Name</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -169,10 +166,10 @@ export default function Signup() {
                     borderColor: colors.border
                   }
                 ]}
-                placeholder="Choose a username"
+                placeholder="Choose a Display Name"
                 placeholderTextColor={colors.textSecondary}
-                value={username}
-                onChangeText={setUsername}
+                value={display_name}
+                onChangeText={setDisplayName}
                 autoCapitalize="none"
               />
             </View>

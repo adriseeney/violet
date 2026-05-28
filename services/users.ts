@@ -3,17 +3,16 @@ import type { User } from "@/types/user";
 import { logSupabaseError } from "@/utils/logSupabaseError";
 
 export interface IUserProfilePayload {
+  id?: string | null;
   email?: string | null;
-  username?: string | null;
   display_name?: string | null;
   bio?: string | null;
   date_of_birth?: string | null;
-  gender_identity?: string | null;
   location_city?: string | null;
   location_state?: string | null;
   profile_picture_url?: string | null;
-  height_cm?: number | null;
-  weight_kg?: number | null;
+  height_in?: number | null;
+  weight_lb?: number | null;
   ethnicity?: string | null;
 }
 
@@ -44,16 +43,14 @@ type UserProfileUpsert = {
   id: string;
   email: string;
   updated_at: string;
-  username?: string | null;
   display_name?: string | null;
   bio?: string | null;
   date_of_birth?: string | null;
-  gender_identity?: string | null;
   location_city?: string | null;
   location_state?: string | null;
   profile_picture_url?: string | null;
-  height_cm?: number | null;
-  weight_kg?: number | null;
+  height_in?: number | null;
+  weight_lb?: number | null;
   ethnicity?: string | null;
 };
 
@@ -137,28 +134,31 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
       throw new Error("No authenticated user found.");
     }
 
+    const userId = normalizeText(payload.id) ?? user.id;
     const email = normalizeText(payload.email) ?? normalizeText(user.email);
+
+    if (!userId) {
+      throw new Error("No authenticated user ID found.");
+    }
 
     if (!email) {
       throw new Error("No email address found for the authenticated user.");
     }
 
     const row: UserProfileUpsert = {
-      id: user.id,
+      id: userId,
       email,
       updated_at: new Date().toISOString(),
     };
 
-    setTextIfProvided(row, "username", payload.username);
     setTextIfProvided(row, "display_name", payload.display_name);
     setTextIfProvided(row, "bio", payload.bio);
     setDateIfProvided(row, "date_of_birth", payload.date_of_birth);
-    setTextIfProvided(row, "gender_identity", payload.gender_identity);
     setTextIfProvided(row, "location_city", payload.location_city);
     setTextIfProvided(row, "location_state", payload.location_state);
     setTextIfProvided(row, "profile_picture_url", payload.profile_picture_url);
-    setNumberIfProvided(row, "height_cm", payload.height_cm);
-    setNumberIfProvided(row, "weight_kg", payload.weight_kg);
+    setNumberIfProvided(row, "height_in", payload.height_in);
+    setNumberIfProvided(row, "weight_lb", payload.weight_lb);
     setTextIfProvided(row, "ethnicity", payload.ethnicity);
 
     const { data, error } = await supabaseConfig
@@ -249,14 +249,17 @@ function computeAgeFromDob(dateOfBirth: string | null | undefined): number {
 export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
   const city = row.location_city as string | null | undefined;
   const state = row.location_state as string | null | undefined;
-  const location = [city, state].filter(Boolean).join(", ") || undefined;
+  const displayName =
+    (row.display_name as string | null | undefined) ||
+    (row.username as string | null | undefined) ||
+    "Unknown";
+  const email = (row.email as string | null | undefined) || "";
 
   return {
     id: String(row.id),
-    username:
-      (row.display_name as string | null | undefined) ||
-      (row.username as string | null | undefined) ||
-      "Unknown",
+    name: displayName,
+    display_name: displayName,
+    email,
     age: computeAgeFromDob(row.date_of_birth as string | null | undefined),
     gender: (row.gender_identity as string | null | undefined) || "",
     distance: 0,
@@ -264,7 +267,8 @@ export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
     profilePicture:
       (row.profile_picture_url as string | null | undefined) ||
       "https://via.placeholder.com/300x300?text=User",
-    location,
+    locationCity: city || undefined,
+    locationState: state || undefined,
     isOnline: false,
   };
 }

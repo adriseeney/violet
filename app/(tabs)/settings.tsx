@@ -129,7 +129,7 @@ export default function SettingsScreen() {
           <Text
             style={[
               styles.settingTitle,
-              { color: danger ? '#ef4444' : colors.text },
+              { color: danger ? '#8644ef' : colors.text },
             ]}
           >
             {title}
