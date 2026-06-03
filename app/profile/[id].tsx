@@ -25,6 +25,9 @@ export default function UserProfileScreen() {
 
   const [userPhotos, setUserPhotos] = useState<string[]>([]);
   const [openingChat, setOpeningChat] = useState(false);
+  const userLocation = [user?.locationCity, user?.locationState]
+    .filter(Boolean)
+    .join(', ');
 
   useEffect(() => {
     if (!profileId || typeof profileId !== 'string') {
@@ -203,19 +206,19 @@ export default function UserProfileScreen() {
             
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.text }]}>
-                {user.username}, {user.age}
+                {(user.display_name || user.name)}, {user.age}
               </Text>
               <Text style={[styles.profileGender, { color: colors.textSecondary }]}>
                 {user.gender}
               </Text>
               
-              {user.location && (
+              {userLocation && (
                 <View style={styles.locationContainer}>
                   <MapPin size={14} color={colors.textSecondary} />
                   <Text style={[styles.locationText, { color: colors.textSecondary }]}>
                     {user.distance > 0
-                      ? `${user.location} • ${formatDistanceMiles(user.distance)} away`
-                      : user.location}
+                      ? `${userLocation} • ${formatDistanceMiles(user.distance)} away`
+                      : userLocation}
                   </Text>
                 </View>
               )}

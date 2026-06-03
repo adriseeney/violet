@@ -1,7 +1,7 @@
 import { supabaseConfig } from "@/config/supabase-config";
 import { logSupabaseError } from "@/utils/logSupabaseError";
 
-const PROFILE_PHOTOS_BUCKET = "profile-photos";
+const PROFILE_PHOTOS_BUCKET = "user_photos";
 
 type SavedProfilePhoto = {
   url: string;

@@ -245,11 +245,11 @@ export function useMockUsers() {
       const gender = getRandomItem(['Female']);
     
       // Always use feminine / neutral names
-      let username = getRandomItem([...FEMALE_NAMES, ...GENDER_NEUTRAL_NAMES]);
+      let displayName = getRandomItem([...FEMALE_NAMES, ...GENDER_NEUTRAL_NAMES]);
     
       // Add uniqueness sometimes
       if (Math.random() > 0.7) {
-        username += Math.floor(Math.random() * 99);
+        displayName += Math.floor(Math.random() * 99);
       }
     
       const age = generateRandomNumber(21, 45);
@@ -260,7 +260,7 @@ export function useMockUsers() {
       let bio: string | undefined;
       if (Math.random() > 0.1) {
         const bioTemplates = [
-          `${username}, ${age}. Into ${getRandomItem(INTERESTS)} & ${getRandomItem(INTERESTS)}.`,
+          `${displayName}, ${age}. Into ${getRandomItem(INTERESTS)} & ${getRandomItem(INTERESTS)}.`,
           `Looking for ${getRandomItem(INTIMACY_PREFERENCES).toLowerCase()}. Love ${getRandomItem(INTERESTS)}.`,
           `Based in ${getRandomItem(LOCATIONS)}. Always down for ${getRandomItem(INTERESTS)}.`,
           `${getRandomItem(['Soft energy', 'Playful', 'Chill', 'Curious'])} — let’s connect.`,
@@ -274,13 +274,16 @@ export function useMockUsers() {
     
       const user: User = {
         id: i.toString(),
-        username,
+        name: displayName,
+        display_name: displayName,
+        email: '',
         age,
         gender,
         distance,
         bio,
         profilePicture,
-        location: getRandomItem(LOCATIONS),
+        locationCity: getRandomItem(LOCATIONS),
+        locationState: '',
         interests: getRandomItems(INTERESTS, 1, 5),
         lastActive: getRandomItem(LAST_ACTIVE),
         isOnline,

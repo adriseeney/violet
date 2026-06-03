@@ -228,7 +228,7 @@ export function useMockBotMessages() {
       lastMessage: "",
       lastMessageTime: new Date().toISOString(),
       unreadCount: 0,
-      username: systemUser.username,
+      username: systemUser.display_name || systemUser.name,
       profileImage: systemUser.profilePicture,
       isOnline: true
     };
@@ -366,8 +366,11 @@ export function useMockBotMessages() {
             message = message.replace("{interest}", interest.toLowerCase());
           }
           
-          if (receiver.location) {
-            message = message.replace("{location}", receiver.location);
+          const receiverLocation = [receiver.locationCity, receiver.locationState]
+            .filter(Boolean)
+            .join(', ');
+          if (receiverLocation) {
+            message = message.replace("{location}", receiverLocation);
           }
           
           message = message.replace(
