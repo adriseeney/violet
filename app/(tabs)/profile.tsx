@@ -15,6 +15,22 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 
 const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
 
+const BODY_TYPE_OPTIONS = [
+  'athletic',
+  'soft',
+  'curvy',
+  'muscular',
+  'plus-size',
+  'lean',
+  'prefer not to say',
+] as const;
+
+function formatBodyTypeLabel(value: string): string {
+  if (value === 'prefer not to say') return 'Prefer not to say';
+  if (value === 'plus-size') return 'Plus-size';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function strField(row: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
     const v = row[k];
@@ -96,7 +112,7 @@ export default function ProfileScreen() {
     age: '',
     bio: '',
     height: '',
-    weight: '',
+    bodyType: '',
     ethnicity: '',
     location: '',
   });
@@ -135,8 +151,8 @@ export default function ProfileScreen() {
         name: u.display_name ?? '',
         age: u.age > 0 ? String(u.age) : '',
         bio: u.bio ?? '',
-        height: numberField(r, 'height_in', 'height'),
-        weight: numberField(r, 'weight_lb', 'weight'),
+        height: numberField(r, 'height_cm', 'height'),
+        bodyType: strField(r, 'body_type', 'bodyType'),
         ethnicity: strField(r, 'ethnicity'),
         location:
           [u.locationCity, u.locationState].filter(Boolean).join(', ') ||
@@ -239,6 +255,10 @@ export default function ProfileScreen() {
           setPhotos(savedPhotoUrls.length > 0 ? savedPhotoUrls : [PLACEHOLDER_PHOTO]);
           setProfileImage(profilePictureUrl ?? null);
         } else {
+          console.error(
+            '[profile] saveCurrentUserProfilePhotos failed:',
+            photosResponse.message,
+          );
           photoWarning =
             photosResponse.message ??
             'The profile details were saved, but the selected photos could not be uploaded.';
@@ -255,8 +275,8 @@ export default function ProfileScreen() {
         display_name: profileInfo.name,
         bio: profileInfo.bio,
         date_of_birth: dateOfBirthFromAge(profileInfo.age),
-        height_in: parseOptionalInteger(profileInfo.height),
-        weight_lb: parseOptionalInteger(profileInfo.weight),
+        height_cm: parseOptionalInteger(profileInfo.height),
+        body_type: profileInfo.bodyType.trim() || null,
         ethnicity: profileInfo.ethnicity,
         profile_picture_url: profilePictureUrl,
         ...locationFields,
@@ -381,31 +401,47 @@ export default function ProfileScreen() {
             />
           </View>
           
-          <View style={styles.fieldRow}>
-            <View style={[styles.fieldContainer, { flex: 1 }]}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Height (cm)</Text>
-              <TextInput
-                style={[styles.fieldInput, { color: colors.text, borderColor: colors.border }]}
-                value={profileInfo.height}
-                onChangeText={(text) => handleChange("height", text.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                maxLength={3}
-                placeholder="Height"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-            
-            <View style={[styles.fieldContainer, { flex: 1, marginLeft: 12 }]}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Weight (kg)</Text>
-              <TextInput
-                style={[styles.fieldInput, { color: colors.text, borderColor: colors.border }]}
-                value={profileInfo.weight}
-                onChangeText={(text) => handleChange("weight", text.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                maxLength={3}
-                placeholder="Weight"
-                placeholderTextColor={colors.textSecondary}
-              />
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Height (cm)</Text>
+            <TextInput
+              style={[styles.fieldInput, { color: colors.text, borderColor: colors.border }]}
+              value={profileInfo.height}
+              onChangeText={(text) => handleChange("height", text.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={3}
+              placeholder="Height"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
+
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Body type</Text>
+            <View style={styles.bodyTypeOptions}>
+              {BODY_TYPE_OPTIONS.map((option) => {
+                const selected = profileInfo.bodyType === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.bodyTypeChip,
+                      {
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary : colors.cardBackground,
+                      },
+                    ]}
+                    onPress={() => handleChange('bodyType', option)}
+                  >
+                    <Text
+                      style={[
+                        styles.bodyTypeChipText,
+                        { color: selected ? '#FFFFFF' : colors.text },
+                      ]}
+                    >
+                      {formatBodyTypeLabel(option)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
           
@@ -452,12 +488,18 @@ export default function ProfileScreen() {
           <View style={styles.profileDetails}>
             <View style={styles.detailItem}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Height</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>{profileInfo.height} cm</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>
+                {profileInfo.height ? `${profileInfo.height} cm` : '—'}
+              </Text>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
             <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Weight</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>{profileInfo.weight} kg</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Body type</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>
+                {profileInfo.bodyType
+                  ? formatBodyTypeLabel(profileInfo.bodyType)
+                  : '—'}
+              </Text>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
             <View style={styles.detailItem}>
@@ -699,6 +741,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontFamily: 'Inter-Regular',
     fontSize: 16,
+  },
+  bodyTypeOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  bodyTypeChip: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  bodyTypeChipText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
   },
   bioInput: {
     height: 120,

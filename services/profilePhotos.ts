@@ -1,7 +1,7 @@
 import { supabaseConfig } from "@/config/supabase-config";
 import { logSupabaseError } from "@/utils/logSupabaseError";
 
-const PROFILE_PHOTOS_BUCKET = "user_photos";
+const PROFILE_PHOTOS_BUCKET = "profile-photos";
 
 type SavedProfilePhoto = {
   url: string;
@@ -10,6 +10,21 @@ type SavedProfilePhoto = {
 
 function isRemoteUrl(uri: string): boolean {
   return /^https?:\/\//i.test(uri);
+}
+
+function photoUrlFromRow(row: Record<string, unknown>): string {
+  const value = row.photo_url ?? row.url;
+  return value != null ? String(value) : "";
+}
+
+function storagePathFromPublicUrl(url: string): string | null {
+  const marker = `/object/public/${PROFILE_PHOTOS_BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) {
+    return null;
+  }
+
+  return decodeURIComponent(url.slice(index + marker.length));
 }
 
 function getContentType(uri: string, response: Response): string {
@@ -129,7 +144,7 @@ export const getCurrentUserProfilePhotos = async () => {
 
     const { data, error } = await supabaseConfig
       .from("user_photos")
-      .select("url, storage_path, display_order, is_primary")
+      .select("photo_url, url, storage_path, display_order, is_primary")
       .eq("user_id", userId)
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: true });
@@ -142,7 +157,7 @@ export const getCurrentUserProfilePhotos = async () => {
     return {
       success: true,
       data: (data ?? []).map((photo) => ({
-        url: String(photo.url),
+        url: photoUrlFromRow(photo as Record<string, unknown>),
         storagePath:
           typeof photo.storage_path === "string" ? photo.storage_path : null,
       })),
@@ -167,7 +182,10 @@ export const saveCurrentUserProfilePhotos = async (photoUris: string[]) => {
 
     for (const uri of realPhotoUris) {
       if (isRemoteUrl(uri)) {
-        savedPhotos.push({ url: uri, storagePath: null });
+        savedPhotos.push({
+          url: uri,
+          storagePath: storagePathFromPublicUrl(uri),
+        });
         continue;
       }
 
@@ -201,14 +219,11 @@ export const saveCurrentUserProfilePhotos = async (photoUris: string[]) => {
         .insert(
           savedPhotos.map((photo, index) => ({
             user_id: userId,
-            url: photo.url,
+            photo_url: photo.url,
             storage_path: photo.storagePath,
             display_order: index,
             is_primary: index === 0,
             is_private: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            id: crypto.randomUUID(),
           })),
         );
 

@@ -13,8 +13,12 @@ import { supabaseConfig } from '@/config/supabase-config';
 import { getProfileById } from '@/services/users';
 
 export default function UserProfileScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, distance: distanceParam } = useLocalSearchParams();
   const profileId = Array.isArray(id) ? id[0] : id;
+  const distanceFromBrowse =
+    typeof distanceParam === 'string' && distanceParam.trim() !== ''
+      ? Number.parseFloat(distanceParam)
+      : Number.NaN;
   const { colors } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -53,7 +57,12 @@ export default function UserProfileScreen() {
         return;
       }
 
-      setUser(res.user);
+      const userWithDistance =
+        Number.isFinite(distanceFromBrowse) && distanceFromBrowse >= 0
+          ? { ...res.user, distance: distanceFromBrowse }
+          : res.user;
+
+      setUser(userWithDistance);
 
       const { data, error } = await supabaseConfig
         .from('user_photos')
@@ -65,12 +74,20 @@ export default function UserProfileScreen() {
       if (error) {
         console.error('Error fetching user photos:', error);
         setUserPhotos(
-          res.user.profilePicture ? [res.user.profilePicture] : []
+          userWithDistance.profilePicture ? [userWithDistance.profilePicture] : []
         );
       } else {
-        const urls = (data ?? []).map((photo: { url: string }) => photo.url);
+        const urls = (data ?? [])
+          .map((photo: Record<string, unknown>) =>
+            String(photo.photo_url ?? photo.url ?? ''),
+          )
+          .filter(Boolean);
         setUserPhotos(
-          urls.length > 0 ? urls : res.user.profilePicture ? [res.user.profilePicture] : []
+          urls.length > 0
+            ? urls
+            : userWithDistance.profilePicture
+              ? [userWithDistance.profilePicture]
+              : []
         );
       }
 
@@ -80,7 +97,7 @@ export default function UserProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [profileId]);
+  }, [profileId, distanceFromBrowse]);
 
   const handleMessage = async () => {
     if (!user) return;

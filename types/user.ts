@@ -24,9 +24,8 @@ export interface User {
   safetyPractices?: string; // Safety preferences
   showPreferencesPublicly?: boolean; // Whether to show preferences on profile
   // Additional profile information
-  height?: number; // Height in inches
-  weight?: number; // Weight in lbs
-  bodyType?: string; // Body type description
+  height?: number; // Height in cm
+  bodyType?: string;
   ethnicity?: string; // Ethnicity information
   relationshipStatus?: string; // Current relationship status
   photos?: string[]; // Additional user photos

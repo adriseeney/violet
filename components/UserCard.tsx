@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Pressable, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { MoreVertical, MessageCircle, Star, X } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
 import { formatDistanceMiles } from '@/utils/formatDistance';
+import { getOrCreateDm } from '@/services/chat';
 
 interface UserCardProps {
   user: {
@@ -20,18 +21,38 @@ export default function UserCard({ user, onPress }: UserCardProps) {
   const { colors } = useTheme();
   const [isPressed, setIsPressed] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [openingChat, setOpeningChat] = useState(false);
 
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else {
-      router.push(`/profile/${user.id}`);
+      router.push({
+        pathname: '/profile/[id]',
+        params: { id: user.id, distance: String(user.distance) },
+      });
     }
   };
 
-  const handleMessage = (e: any) => {
+  const handleMessage = async (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
-    router.push(`/chat/${user.id}`);
+    setOpeningChat(true);
+
+    try {
+      const res = await getOrCreateDm(user.id);
+
+      if (res.success && res.conversationId) {
+        router.push(`/chat/${res.conversationId}`);
+        return;
+      }
+
+      Alert.alert(
+        'Chat unavailable',
+        res.message ?? 'Could not start a conversation with this user.',
+      );
+    } finally {
+      setOpeningChat(false);
+    }
   };
 
   const handleOptionsPress = (e: any) => {
@@ -81,8 +102,13 @@ export default function UserCard({ user, onPress }: UserCardProps) {
         <TouchableOpacity
           style={[styles.messageButton, { backgroundColor: colors.primary }]}
           onPress={handleMessage}
+          disabled={openingChat}
         >
-          <MessageCircle size={14} color="#fff" />
+          {openingChat ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <MessageCircle size={14} color="#fff" />
+          )}
         </TouchableOpacity>
 
         {/* ONLINE DOT */}

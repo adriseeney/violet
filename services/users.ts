@@ -11,8 +11,8 @@ export interface IUserProfilePayload {
   location_city?: string | null;
   location_state?: string | null;
   profile_picture_url?: string | null;
-  height_in?: number | null;
-  weight_lb?: number | null;
+  height_cm?: number | null;
+  body_type?: string | null;
   ethnicity?: string | null;
 }
 
@@ -49,8 +49,8 @@ type UserProfileUpsert = {
   location_city?: string | null;
   location_state?: string | null;
   profile_picture_url?: string | null;
-  height_in?: number | null;
-  weight_lb?: number | null;
+  height_cm?: number | null;
+  body_type?: string | null;
   ethnicity?: string | null;
 };
 
@@ -157,8 +157,8 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
     setTextIfProvided(row, "location_city", payload.location_city);
     setTextIfProvided(row, "location_state", payload.location_state);
     setTextIfProvided(row, "profile_picture_url", payload.profile_picture_url);
-    setNumberIfProvided(row, "height_in", payload.height_in);
-    setNumberIfProvided(row, "weight_lb", payload.weight_lb);
+    setNumberIfProvided(row, "height_cm", payload.height_cm);
+    setTextIfProvided(row, "body_type", payload.body_type);
     setTextIfProvided(row, "ethnicity", payload.ethnicity);
 
     const { data, error } = await supabaseConfig
@@ -269,6 +269,7 @@ export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
       "https://via.placeholder.com/300x300?text=User",
     locationCity: city || undefined,
     locationState: state || undefined,
+    bodyType: (row.body_type as string | null | undefined) || undefined,
     isOnline: false,
   };
 }
@@ -282,6 +283,7 @@ export const getProfileById = async (profileId: string) => {
       .maybeSingle();
 
     if (error) {
+      logSupabaseError("getProfileById select user_profiles", error);
       return {
         success: false as const,
         user: null as User | null,

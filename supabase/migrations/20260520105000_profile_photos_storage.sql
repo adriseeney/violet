@@ -1,4 +1,4 @@
-git merge feature/backend-data-layer-- Storage support for persistent profile photos.
+-- Storage support for persistent profile photos.
 --
 -- The app stores the selected avatar in public.user_profiles.profile_picture_url.
 -- Local ImagePicker file:// URIs are not durable, so they must be uploaded to a

@@ -296,7 +296,15 @@ export function useMockUsers() {
         ethnicity: getRandomItem(ETHNICITIES),
         showPreferencesPublicly: Math.random() > 0.5,
         height: generateRandomNumber(150, 185),
-        weight: generateRandomNumber(50, 90),
+        bodyType: getRandomItem([
+          'athletic',
+          'soft',
+          'curvy',
+          'muscular',
+          'plus-size',
+          'lean',
+          'prefer not to say',
+        ]),
       };
     
       mockUsers.push(user);

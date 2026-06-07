@@ -16,7 +16,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { FilterButton } from '@/components/FilterButton';
 import { User } from '@/types/user';
 import { useLocationContext } from '@/contexts/location-context';
-import { getNearbyProfiles, INearbyProfile } from '@/services/users';
+import { getNearbyProfiles, INearbyProfile, updateCurrentUserLocation } from '@/services/users';
 
 export default function BrowseScreen() {
   const { colors } = useTheme();
@@ -32,6 +32,7 @@ export default function BrowseScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [browseError, setBrowseError] = useState<string | null>(null);
 
   const mapNearbyToUser = (profile: INearbyProfile): User => ({
     id: profile.id,
@@ -53,12 +54,36 @@ export default function BrowseScreen() {
     }
 
     setLoading(true);
+    setBrowseError(null);
+
     try {
+      const locationResponse = await updateCurrentUserLocation(
+        coords.latitude,
+        coords.longitude,
+      );
+
+      if (!locationResponse.success) {
+        console.warn(
+          '[browse] updateCurrentUserLocation failed:',
+          locationResponse.message,
+        );
+      }
+
       const response = await getNearbyProfiles(coords.latitude, coords.longitude);
+
       if (response.success) {
         setUsers(response.data.map(mapNearbyToUser));
+        if (response.data.length === 0) {
+          console.info(
+            '[browse] nearby_profiles returned 0 users. Viewer coords:',
+            coords.latitude,
+            coords.longitude,
+          );
+        }
       } else {
+        console.error('[browse] getNearbyProfiles failed:', response.message);
         setUsers([]);
+        setBrowseError(response.message ?? 'Could not load nearby profiles.');
       }
     } finally {
       setLoading(false);
@@ -195,8 +220,20 @@ export default function BrowseScreen() {
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                   {searchQuery.trim() !== ''
                     ? 'No users match your search'
-                    : 'No users found nearby'}
+                    : browseError ?? 'No users found nearby'}
                 </Text>
+                {!browseError && coords ? (
+                  <Text
+                    style={[
+                      styles.emptyHint,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Other profiles need latitude/longitude, is_discoverable =
+                    true, and a user_preferences row within ~25 mi of your GPS
+                    (see coords in the header).
+                  </Text>
+                ) : null}
               </View>
             }
           />
@@ -251,6 +288,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 24,
+    lineHeight: 18,
   },
   centered: {
     justifyContent: 'center',
