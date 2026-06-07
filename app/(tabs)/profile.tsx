@@ -8,7 +8,6 @@ import { Edit2, Plus, Trash2, Settings, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { PreferencePicker, MultiPreferencePicker } from '@/components/PreferencePicker';
 import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import { getCurrentUserProfilePhotos, saveCurrentUserProfilePhotos } from '@/services/profilePhotos';
 import {
   applyPreferencesRowToUser,
@@ -363,13 +362,6 @@ export default function ProfileScreen() {
       cancelled = true;
     };
   }, [loadProfileFromServer]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (isEditing) return;
-      void loadProfileFromServer();
-    }, [isEditing, loadProfileFromServer]),
-  );
 
   const viewProfile = viewProfileFromState(profileInfo, profileUser);
 
