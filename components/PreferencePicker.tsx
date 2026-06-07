@@ -77,6 +77,61 @@ export function PreferencePicker({
   );
 }
 
+interface MultiPreferencePickerProps {
+  label: string;
+  options: readonly PreferencePickerOption[];
+  selectedValues: string[];
+  onToggle: (value: string) => void;
+  formatLabel?: (value: string) => string;
+}
+
+export function MultiPreferencePicker({
+  label,
+  options,
+  selectedValues,
+  onToggle,
+  formatLabel,
+}: MultiPreferencePickerProps) {
+  const { colors } = useTheme();
+
+  const getLabel = (option: PreferencePickerOption) =>
+    option.label ?? formatLabel?.(option.value) ?? option.value;
+
+  return (
+    <View style={styles.fieldContainer}>
+      <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <View style={styles.chipsRow}>
+        {options.map((option) => {
+          const selected = selectedValues.includes(option.value);
+
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.chip,
+                {
+                  borderColor: selected ? colors.primary : colors.border,
+                  backgroundColor: selected ? colors.primary : colors.cardBackground,
+                },
+              ]}
+              onPress={() => onToggle(option.value)}
+            >
+              <Text
+                style={[
+                  styles.optionText,
+                  { color: selected ? '#FFFFFF' : colors.text },
+                ]}
+              >
+                {getLabel(option)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: 16,

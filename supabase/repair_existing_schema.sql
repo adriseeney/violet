@@ -17,3 +17,15 @@ alter table if exists public.user_photos
 
 drop function if exists public.update_user_location(uuid, double precision, double precision) cascade;
 drop function if exists public.nearby_profiles(double precision, double precision, uuid) cascade;
+
+-- Optional: rename intimacy preference columns (also in 20260607130000_rename_intimacy_preference_columns.sql)
+-- Run if profile save fails with "column intimacy_role does not exist"
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'user_preferences' and column_name = 'sexual_role'
+  ) then
+    alter table public.user_preferences rename column sexual_role to intimacy_role;
+  end if;
+end $$;

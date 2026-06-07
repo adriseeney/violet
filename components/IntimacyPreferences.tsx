@@ -5,23 +5,27 @@ import { User } from '@/types/user';
 
 interface IntimacyPreferencesProps {
   user: User;
-  showFull?: boolean; // If true, shows all preferences. If false, shows abbreviated version.
+  showFull?: boolean;
 }
 
-export default function IntimacyPreferences({ user, showFull = false }: IntimacyPreferencesProps) {
+export default function IntimacyPreferences({
+  user,
+  showFull = false,
+}: IntimacyPreferencesProps) {
   const { colors } = useTheme();
 
-  // Don't show anything if user has chosen not to display preferences publicly
   if (!user.showPreferencesPublicly && !showFull) {
     return null;
   }
 
-  const renderPreferenceItem = (label: string, value: string | string[] | undefined) => {
-    if (!value) return null;
-    
+  const renderItem = (label: string, value: string | string[] | undefined) => {
+    if (!value || (Array.isArray(value) && value.length === 0)) return null;
+
     return (
       <View style={styles.preferenceItem}>
-        <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>
+          {label}
+        </Text>
         <Text style={[styles.preferenceValue, { color: colors.text }]}>
           {Array.isArray(value) ? value.join(', ') : value}
         </Text>
@@ -29,36 +33,37 @@ export default function IntimacyPreferences({ user, showFull = false }: Intimacy
     );
   };
 
-  // Simplified preview to display in user cards
-  if (!showFull) {
-    const lookingFor = user.intimacyPreferences?.length 
-      ? `Looking for: ${user.intimacyPreferences.join(', ')}`
-      : null;
+  const hasSapphicFields =
+    user.intimacyRole ||
+    (user.presentationTags && user.presentationTags.length > 0) ||
+    user.relationshipFramework ||
+    user.relationalRelationship;
 
-    return lookingFor ? (
+  if (!showFull && user.intimacyRole) {
+    return (
       <View style={styles.previewContainer}>
         <Text style={[styles.previewText, { color: colors.textSecondary }]}>
-          {lookingFor}
+          Role: {user.intimacyRole}
         </Text>
       </View>
-    ) : null;
+    );
   }
 
-  // Full preference display for profile page
+  if (!hasSapphicFields && !showFull) {
+    return null;
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.cardBackground }]}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        Intimacy Preferences
+        Preferences
       </Text>
-      
+
       <View style={styles.preferencesContainer}>
-        {renderPreferenceItem('Interested in', user.sexualPreference)}
-        {renderPreferenceItem('Role', user.sexualRole)}
-        {renderPreferenceItem('Position', user.sexualPosition)}
-        {renderPreferenceItem('Looking for', user.intimacyPreferences)}
-        {renderPreferenceItem('Intimacy style', user.sexStyle)}
-        {renderPreferenceItem('Health status', user.hivStatus)}
-        {renderPreferenceItem('Safety practices', user.safetyPractices)}
+        {renderItem('Intimacy role', user.intimacyRole)}
+        {renderItem('I identify as', user.presentationTags)}
+        {renderItem('Relationship style', user.relationshipFramework)}
+        {renderItem('Looking for', user.relationalRelationship)}
       </View>
     </View>
   );
@@ -96,4 +101,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Regular',
   },
-}); 
+});

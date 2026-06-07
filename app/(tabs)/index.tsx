@@ -124,7 +124,7 @@ export default function BrowseScreen() {
         <StatusBar style="light" />
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.messageText, { color: colors.text, marginTop: 12 }]}>
-          Finding people near you...
+          Finding women near you...
         </Text>
       </View>
     );
@@ -138,7 +138,7 @@ export default function BrowseScreen() {
           Turn on location to browse nearby users
         </Text>
         <Text style={[styles.permissionBody, { color: colors.textSecondary }]}>
-          Violet uses your location to show people near you.
+          Violet uses your location to show women near you.
         </Text>
 
         <Pressable

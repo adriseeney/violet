@@ -6,17 +6,32 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Edit2, Plus, Trash2, Settings, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import IntimacyPreferences from '@/components/IntimacyPreferences';
-import { PreferencePicker } from '@/components/PreferencePicker';
-import { useEffect, useState } from 'react';
+import { PreferencePicker, MultiPreferencePicker } from '@/components/PreferencePicker';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { getCurrentUserProfilePhotos, saveCurrentUserProfilePhotos } from '@/services/profilePhotos';
-import { createUserProfile, getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
+import {
+  applyPreferencesRowToUser,
+  createUserPreferences,
+  createUserProfile,
+  getCurrentUserPreferences,
+  getCurrentUserProfile,
+  mapUserProfileRowToUser,
+} from '@/services/users';
 import type { User } from '@/types/user';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { BODY_TYPE_OPTIONS, HEIGHT_OPTIONS, type HeightString } from '@/types/preferences';
+import {
+  BODY_TYPE_OPTIONS,
+  HEIGHT_OPTIONS,
+  IDENTITY_TAG_OPTIONS,
+  INTIMACY_ROLE_OPTIONS,
+  RELATIONAL_OPTIONS,
+  RELATIONSHIP_OPTIONS,
+  type HeightString,
+} from '@/types/preferences';
 const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
 
-function formatBodyTypeLabel(value: string): string {
+function formatTypeLabel(value: string): string {
   if (value === 'prefer not to say') return 'Prefer not to say';
   return value
     .split('/')
@@ -114,6 +129,179 @@ function isRemotePhoto(uri: string): boolean {
   return /^https?:\/\//i.test(uri);
 }
 
+type ProfileInfoState = {
+  name: string;
+  age: string;
+  bio: string;
+  height: string;
+  bodyType: string;
+  ethnicity: string;
+  location: string;
+  intimacyRole: string;
+  presentationTags: string[];
+  relationshipFramework: string;
+  relationalRelationship: string;
+};
+
+const EMPTY_PROFILE_INFO: ProfileInfoState = {
+  name: '',
+  age: '',
+  bio: '',
+  height: '',
+  bodyType: '',
+  ethnicity: '',
+  location: '',
+  intimacyRole: '',
+  presentationTags: [],
+  relationshipFramework: '',
+  relationalRelationship: '',
+};
+
+function readHeightCm(row: Record<string, unknown>): number | null {
+  const value = row.height_cm;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.round(value);
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? Math.round(parsed) : null;
+  }
+  return null;
+}
+
+function buildProfileInfo(
+  profileRow: Record<string, unknown>,
+  user: User,
+): ProfileInfoState {
+  const heightCm = readHeightCm(profileRow);
+  const ageFromDob = computeAgeFromRow(profileRow);
+
+  return {
+    name:
+      strField(profileRow, 'display_name') ||
+      user.display_name ||
+      user.name ||
+      '',
+    age: ageFromDob > 0 ? String(ageFromDob) : user.age > 0 ? String(user.age) : '',
+    bio: strField(profileRow, 'bio') || user.bio || '',
+    height:
+      heightCm != null
+        ? cmToHeightString(heightCm) || `${heightCm} cm`
+        : strField(profileRow, 'height'),
+    bodyType:
+      strField(profileRow, 'body_type', 'bodyType') || user.bodyType || '',
+    ethnicity: strField(profileRow, 'ethnicity') || user.ethnicity || '',
+    location:
+      [user.locationCity, user.locationState].filter(Boolean).join(', ') ||
+      [profileRow.location_city, profileRow.location_state]
+        .filter(Boolean)
+        .join(', '),
+    intimacyRole: user.intimacyRole ?? '',
+    presentationTags: user.presentationTags ?? [],
+    relationshipFramework: user.relationshipFramework ?? '',
+    relationalRelationship: user.relationalRelationship ?? '',
+  };
+}
+
+function computeAgeFromRow(row: Record<string, unknown>): number {
+  const dob = row.date_of_birth;
+  if (typeof dob !== 'string' || !dob.trim()) return 0;
+
+  const parsed = new Date(dob);
+  if (Number.isNaN(parsed.getTime())) return 0;
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const monthDelta = today.getMonth() - parsed.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < parsed.getDate())) {
+    age -= 1;
+  }
+  return Math.max(0, age);
+}
+
+/** Prefer freshly loaded DB values, fall back to what the user just edited. */
+function mergeProfileInfoState(
+  draft: ProfileInfoState,
+  loaded: ProfileInfoState,
+): ProfileInfoState {
+  return {
+    name: loaded.name || draft.name,
+    age: loaded.age || draft.age,
+    bio: loaded.bio || draft.bio,
+    height: loaded.height || draft.height,
+    bodyType: loaded.bodyType || draft.bodyType,
+    ethnicity: loaded.ethnicity || draft.ethnicity,
+    location: loaded.location || draft.location,
+    intimacyRole: loaded.intimacyRole || draft.intimacyRole,
+    presentationTags:
+      loaded.presentationTags.length > 0
+        ? loaded.presentationTags
+        : draft.presentationTags,
+    relationshipFramework:
+      loaded.relationshipFramework || draft.relationshipFramework,
+    relationalRelationship:
+      loaded.relationalRelationship || draft.relationalRelationship,
+  };
+}
+
+function viewProfileFromState(
+  profileInfo: ProfileInfoState,
+  profileUser: User | null,
+): ProfileInfoState {
+  const heightFromUserCm =
+    profileUser?.height != null && Number.isFinite(profileUser.height)
+      ? cmToHeightString(profileUser.height) || `${profileUser.height} cm`
+      : '';
+
+  return {
+    name:
+      profileInfo.name ||
+      profileUser?.display_name ||
+      profileUser?.name ||
+      '',
+    age:
+      profileInfo.age ||
+      (profileUser?.age && profileUser.age > 0 ? String(profileUser.age) : ''),
+    bio: profileInfo.bio || profileUser?.bio || '',
+    height: profileInfo.height || heightFromUserCm,
+    bodyType: profileInfo.bodyType || profileUser?.bodyType || '',
+    ethnicity: profileInfo.ethnicity || profileUser?.ethnicity || '',
+    location:
+      profileInfo.location ||
+      [profileUser?.locationCity, profileUser?.locationState]
+        .filter(Boolean)
+        .join(', '),
+    intimacyRole: profileInfo.intimacyRole || profileUser?.intimacyRole || '',
+    presentationTags:
+      profileInfo.presentationTags.length > 0
+        ? profileInfo.presentationTags
+        : profileUser?.presentationTags ?? [],
+    relationshipFramework:
+      profileInfo.relationshipFramework ||
+      profileUser?.relationshipFramework ||
+      '',
+    relationalRelationship:
+      profileInfo.relationalRelationship ||
+      profileUser?.relationalRelationship ||
+      '',
+  };
+}
+
+function renderDetailRow(
+  label: string,
+  value: string,
+  colors: { text: string; textSecondary: string; border: string },
+) {
+  return (
+    <View key={label} style={styles.detailRow}>
+      <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+        {label}
+      </Text>
+      <Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const authUser = useAuthStore((state) => state.user);
@@ -124,70 +312,80 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [profileInfo, setProfileInfo] = useState({
-    name: '',
-    age: '',
-    bio: '',
-    height: '',
-    bodyType: '',
-    ethnicity: '',
-    location: '',
-  });
+  const [profileInfo, setProfileInfo] = useState<ProfileInfoState>(EMPTY_PROFILE_INFO);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const row = await getCurrentUserProfile();
-      if (cancelled) return;
+  const loadProfileFromServer = useCallback(async (): Promise<ProfileInfoState | null> => {
+    const row = await getCurrentUserProfile();
+    const preferencesRow = await getCurrentUserPreferences();
 
-      if (!row) {
-        setProfileUser(null);
-        setProfileLoading(false);
-        return;
-      }
+    if (!row) {
+      setProfileUser(null);
+      return null;
+    }
 
-      const r = row as Record<string, unknown>;
-      const u = mapUserProfileRowToUser(r);
-      setProfileUser(u);
+    const r = row as Record<string, unknown>;
+    const u = applyPreferencesRowToUser(
+      mapUserProfileRowToUser(r),
+      preferencesRow as Record<string, unknown> | null,
+    );
+    setProfileUser(u);
 
-      const pic = (r.profile_picture_url as string | null | undefined)?.trim();
-      const photosResponse = await getCurrentUserProfilePhotos();
-      const persistedPhotos =
-        photosResponse.success && photosResponse.data.length > 0
-          ? photosResponse.data.map((photo) => photo.url)
-          : [];
-      const photoList = persistedPhotos.length > 0
+    const pic = (r.profile_picture_url as string | null | undefined)?.trim();
+    const photosResponse = await getCurrentUserProfilePhotos();
+    const persistedPhotos =
+      photosResponse.success && photosResponse.data.length > 0
+        ? photosResponse.data.map((photo) => photo.url)
+        : [];
+    const photoList =
+      persistedPhotos.length > 0
         ? persistedPhotos
         : pic && pic.length > 0
           ? [pic]
           : [PLACEHOLDER_PHOTO];
-      setPhotos(photoList);
-      setProfileImage(photoList[0]);
+    setPhotos(photoList);
+    setProfileImage(photoList[0]);
 
-      const heightCm = typeof r.height_cm === 'number' ? r.height_cm : null;
-      setProfileInfo({
-        name: u.display_name ?? '',
-        age: u.age > 0 ? String(u.age) : '',
-        bio: u.bio ?? '',
-        height: heightCm != null ? cmToHeightString(heightCm) : strField(r, 'height'),
-        bodyType: strField(r, 'body_type', 'bodyType'),
-        ethnicity: strField(r, 'ethnicity'),
-        location:
-          [u.locationCity, u.locationState].filter(Boolean).join(', ') ||
-          [r.location_city, r.location_state].filter(Boolean).join(', '),
-      });
+    const nextInfo = buildProfileInfo(r, u);
+    setProfileInfo(nextInfo);
+    return nextInfo;
+  }, []);
 
-      setProfileLoading(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setProfileLoading(true);
+      await loadProfileFromServer();
+      if (!cancelled) {
+        setProfileLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadProfileFromServer]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isEditing) return;
+      void loadProfileFromServer();
+    }, [isEditing, loadProfileFromServer]),
+  );
+
+  const viewProfile = viewProfileFromState(profileInfo, profileUser);
 
   const handleChange = (field: string, value: string) => {
     setProfileInfo((current) => ({
       ...current,
-      [field]: value
+      [field]: value,
+    }));
+  };
+
+  const handleTogglePresentationTag = (tag: string) => {
+    setProfileInfo((current) => ({
+      ...current,
+      presentationTags: current.presentationTags.includes(tag)
+        ? current.presentationTags.filter((item) => item !== tag)
+        : [...current.presentationTags, tag],
     }));
   };
 
@@ -305,9 +503,40 @@ export default function ProfileScreen() {
         return;
       }
 
+      let preferencesWarning: string | undefined;
+
+      const preferencesResponse = await createUserPreferences({
+        user_id: authUser.id,
+        intimacy_role: profileInfo.intimacyRole.trim() || null,
+        intimacy_preferences: profileInfo.presentationTags,
+        relationship_intent: profileInfo.relationshipFramework.trim() || null,
+        looking_for: profileInfo.relationalRelationship.trim() || null,
+        show_preferences_publicly: true,
+      });
+
+      if (!preferencesResponse.success) {
+        console.error(
+          '[profile] createUserPreferences failed:',
+          preferencesResponse.message,
+        );
+        preferencesWarning =
+          preferencesResponse.message ??
+          'Profile details were saved, but preferences could not be updated.';
+      }
+
+      const savedDraft = { ...profileInfo };
+
       if (response.data) {
         const row = response.data as Record<string, unknown>;
-        setProfileUser(mapUserProfileRowToUser(row));
+        const prefsRow = preferencesResponse.success
+          ? (preferencesResponse.data as Record<string, unknown> | null)
+          : null;
+        const savedUser = applyPreferencesRowToUser(
+          mapUserProfileRowToUser(row),
+          prefsRow,
+        );
+        setProfileUser(savedUser);
+        setProfileInfo(mergeProfileInfoState(savedDraft, buildProfileInfo(row, savedUser)));
 
         const savedPhoto = (row.profile_picture_url as string | null | undefined)?.trim();
         if (savedPhoto && savedPhotoUrls.length === 0) {
@@ -317,10 +546,23 @@ export default function ProfileScreen() {
       }
 
       setIsEditing(false);
-      Alert.alert(
-        photoWarning ? "Profile Details Saved" : "Success",
-        photoWarning ?? "Your profile has been updated!",
-      );
+
+      const reloaded = await loadProfileFromServer();
+      if (reloaded) {
+        setProfileInfo((current) => mergeProfileInfoState(savedDraft, reloaded));
+      } else {
+        setProfileInfo(savedDraft);
+      }
+
+      const alertTitle =
+        photoWarning || preferencesWarning
+          ? "Profile Details Saved"
+          : "Success";
+      const alertMessage =
+        [photoWarning, preferencesWarning].filter(Boolean).join("\n\n") ||
+        "Your profile has been updated!";
+
+      Alert.alert(alertTitle, alertMessage);
     } catch {
       Alert.alert("Error", "Error saving profile. Please try again.");
     } finally {
@@ -431,7 +673,38 @@ export default function ProfileScreen() {
             options={BODY_TYPE_OPTIONS.map((option) => ({ value: option.bodyType }))}
             selectedValue={profileInfo.bodyType}
             onSelect={(value) => handleChange('bodyType', value)}
-            formatLabel={formatBodyTypeLabel}
+            formatLabel={formatTypeLabel}
+          />
+
+          <PreferencePicker
+            label="Intimacy role"
+            options={INTIMACY_ROLE_OPTIONS.map((option) => ({ value: option.role }))}
+            selectedValue={profileInfo.intimacyRole}
+            onSelect={(value) => handleChange('intimacyRole', value)}
+          />
+
+          <MultiPreferencePicker
+            label="I identify as"
+            options={IDENTITY_TAG_OPTIONS.map((option) => ({
+              value: option.tag,
+              label: option.tag,
+            }))}
+            selectedValues={profileInfo.presentationTags}
+            onToggle={handleTogglePresentationTag}
+          />
+
+          <PreferencePicker
+            label="Relationship style"
+            options={RELATIONSHIP_OPTIONS.map((option) => ({ value: option.framework }))}
+            selectedValue={profileInfo.relationshipFramework}
+            onSelect={(value) => handleChange('relationshipFramework', value)}
+          />
+
+          <PreferencePicker
+            label="Looking for"
+            options={RELATIONAL_OPTIONS.map((option) => ({ value: option.relationship }))}
+            selectedValue={profileInfo.relationalRelationship}
+            onSelect={(value) => handleChange('relationalRelationship', value)}
           />
           
           <View style={styles.fieldContainer}>
@@ -460,48 +733,75 @@ export default function ProfileScreen() {
         <>
           <View style={styles.profileHeader}>
             <Text style={[styles.profileName, { color: colors.text }]}>
-              {profileInfo.name}, {profileInfo.age}
+              {viewProfile.name || 'Your profile'}
+              {viewProfile.age ? `, ${viewProfile.age}` : ''}
             </Text>
             <TouchableOpacity 
               style={[styles.editButton, { backgroundColor: colors.primary }]}
-              onPress={() => setIsEditing(true)}
+              onPress={() => {
+                setProfileInfo(viewProfileFromState(profileInfo, profileUser));
+                setIsEditing(true);
+              }}
             >
               <Edit2 size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
           
           <Text style={[styles.profileBio, { color: colors.textSecondary }]}>
-            {profileInfo.bio}
+            {viewProfile.bio || '—'}
           </Text>
-          
-          <View style={styles.profileDetails}>
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Height</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>
-                {profileInfo.height || '—'}
+
+          <View style={styles.detailRows}>
+            {renderDetailRow(
+              'Height',
+              viewProfile.height || '—',
+              colors,
+            )}
+            {renderDetailRow(
+              'Body type',
+              viewProfile.bodyType
+                ? formatTypeLabel(viewProfile.bodyType)
+                : '—',
+              colors,
+            )}
+            {renderDetailRow(
+              'Ethnicity',
+              viewProfile.ethnicity || '—',
+              colors,
+            )}
+            {viewProfile.intimacyRole
+              ? renderDetailRow('Intimacy role', viewProfile.intimacyRole, colors)
+              : null}
+            {viewProfile.presentationTags.length > 0
+              ? renderDetailRow(
+                  'I identify as',
+                  viewProfile.presentationTags.join(', '),
+                  colors,
+                )
+              : null}
+            {viewProfile.relationshipFramework
+              ? renderDetailRow(
+                  'Relationship style',
+                  viewProfile.relationshipFramework,
+                  colors,
+                )
+              : null}
+            {viewProfile.relationalRelationship
+              ? renderDetailRow(
+                  'Looking for',
+                  viewProfile.relationalRelationship,
+                  colors,
+                )
+              : null}
+          </View>
+
+          {viewProfile.location ? (
+            <View style={styles.locationContainer}>
+              <Text style={[styles.locationText, { color: colors.textSecondary }]}>
+                📍 {viewProfile.location}
               </Text>
             </View>
-            <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Body type</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>
-                {profileInfo.bodyType
-                  ? formatBodyTypeLabel(profileInfo.bodyType)
-                  : '—'}
-              </Text>
-            </View>
-            <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Ethnicity</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>{profileInfo.ethnicity}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.locationContainer}>
-            <Text style={[styles.locationText, { color: colors.textSecondary }]}>
-              📍 {profileInfo.location}
-            </Text>
-          </View>
+          ) : null}
         </>
       )}
     </View>
@@ -518,24 +818,6 @@ export default function ProfileScreen() {
     );
   }
 
-  const intimacyUser: User | null = profileUser
-    ? {
-        ...profileUser,
-        profilePicture:
-          photos[0] && photos[0] !== PLACEHOLDER_PHOTO
-            ? photos[0]
-            : profileUser.profilePicture,
-        sexualPreference: profileUser.sexualPreference ?? 'Everyone',
-        sexualRole: profileUser.sexualRole ?? 'Not specified',
-        sexualPosition: profileUser.sexualPosition ?? 'Both',
-        intimacyPreferences: profileUser.intimacyPreferences ?? [],
-        sexStyle: profileUser.sexStyle ?? 'Moderate',
-        hivStatus: profileUser.hivStatus ?? 'Prefer not to say',
-        safetyPractices: profileUser.safetyPractices ?? '',
-        showPreferencesPublicly: profileUser.showPreferencesPublicly ?? true,
-      }
-    : null;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
@@ -549,12 +831,6 @@ export default function ProfileScreen() {
         >
           {renderProfilePhotos()}
           {renderProfileInfo()}
-          
-          {!isEditing && intimacyUser && (
-            <View style={styles.preferencesSection}>
-              <IntimacyPreferences user={intimacyUser} showFull={true} />
-            </View>
-          )}
           
           {isEditing && (
             <TouchableOpacity 
@@ -680,6 +956,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 24,
   },
+  detailRows: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  detailRow: {
+    gap: 4,
+  },
   profileDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -698,10 +981,6 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-  },
-  detailDivider: {
-    width: 1,
-    height: 24,
   },
   locationContainer: {
     marginTop: 8,

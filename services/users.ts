@@ -18,7 +18,7 @@ export interface IUserProfilePayload {
 
 export interface IUserPreferencesPayload {
   user_id: string;
-  sexual_preference?: string | null;
+  show_preference?: string | null;
   relationship_intent?: string | null;
   looking_for?: string | null;
   min_age_preference?: number | null;
@@ -26,6 +26,9 @@ export interface IUserPreferencesPayload {
   distance_radius_miles?: number | null;
   show_me?: string | null;
   is_discoverable?: boolean;
+  intimacy_role?: string | null;
+  intimacy_preferences?: string[] | null;
+  show_preferences_publicly?: boolean;
 }
 
 export interface INearbyProfile {
@@ -188,28 +191,81 @@ export const createUserProfile = async (payload: IUserProfilePayload) => {
   }
 };
 
+function isMissingColumnError(message: string | undefined): boolean {
+  return /column .* does not exist/i.test(message ?? "");
+}
+
+function buildPreferencesBaseRow(
+  payload: IUserPreferencesPayload,
+): Record<string, unknown> {
+  return {
+    user_id: payload.user_id,
+    relationship_intent: payload.relationship_intent ?? null,
+    looking_for: payload.looking_for ?? null,
+    min_age_preference: payload.min_age_preference ?? null,
+    max_age_preference: payload.max_age_preference ?? null,
+    distance_radius_miles: payload.distance_radius_miles ?? 25,
+    show_me: payload.show_me ?? null,
+    is_discoverable: payload.is_discoverable ?? true,
+    intimacy_preferences: payload.intimacy_preferences ?? [],
+    show_preferences_publicly: payload.show_preferences_publicly ?? false,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/** New column names (after 20260607130000 rename migration). */
+function buildPreferencesRowRenamed(
+  payload: IUserPreferencesPayload,
+): Record<string, unknown> {
+  return {
+    ...buildPreferencesBaseRow(payload),
+    intimacy_role: payload.intimacy_role ?? null,
+    show_preference: payload.show_preference ?? null,
+  };
+}
+
+/** Pre-rename column names still present on many live databases. */
+function buildPreferencesRowLegacy(
+  payload: IUserPreferencesPayload,
+): Record<string, unknown> {
+  return {
+    ...buildPreferencesBaseRow(payload),
+    sexual_role: payload.intimacy_role ?? null,
+    sexual_preference: payload.show_preference ?? null,
+  };
+}
+
+function readIntimacyRole(row: Record<string, unknown>): string | undefined {
+  const value = row.intimacy_role ?? row.sexual_role;
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+}
+
 export const createUserPreferences = async (
   payload: IUserPreferencesPayload
 ) => {
   try {
-    const { data, error } = await supabaseConfig
+    let data: Record<string, unknown> | null = null;
+    let error: { message?: string } | null = null;
+
+    const renamedAttempt = await supabaseConfig
       .from("user_preferences")
-      .upsert(
-        {
-          user_id: payload.user_id,
-          sexual_preference: payload.sexual_preference ?? null,
-          relationship_intent: payload.relationship_intent ?? null,
-          looking_for: payload.looking_for ?? null,
-          min_age_preference: payload.min_age_preference ?? null,
-          max_age_preference: payload.max_age_preference ?? null,
-          distance_radius_miles: payload.distance_radius_miles ?? 25,
-          show_me: payload.show_me ?? null,
-          is_discoverable: payload.is_discoverable ?? true,
-        },
-        { onConflict: "user_id" },
-      )
+      .upsert(buildPreferencesRowRenamed(payload), { onConflict: "user_id" })
       .select()
       .single();
+
+    if (renamedAttempt.error && isMissingColumnError(renamedAttempt.error.message)) {
+      const legacyAttempt = await supabaseConfig
+        .from("user_preferences")
+        .upsert(buildPreferencesRowLegacy(payload), { onConflict: "user_id" })
+        .select()
+        .single();
+
+      data = legacyAttempt.data as Record<string, unknown> | null;
+      error = legacyAttempt.error;
+    } else {
+      data = renamedAttempt.data as Record<string, unknown> | null;
+      error = renamedAttempt.error;
+    }
 
     if (error) {
       logSupabaseError("createUserPreferences upsert user_preferences", error);
@@ -270,9 +326,92 @@ export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
     locationCity: city || undefined,
     locationState: state || undefined,
     bodyType: (row.body_type as string | null | undefined) || undefined,
+    height:
+      typeof row.height_cm === 'number' && Number.isFinite(row.height_cm)
+        ? row.height_cm
+        : undefined,
+    ethnicity: (row.ethnicity as string | null | undefined) || undefined,
     isOnline: false,
   };
 }
+
+function stringArrayField(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+/** Merge a `user_preferences` row into the in-app `User` shape. */
+export function applyPreferencesRowToUser(
+  user: User,
+  row: Record<string, unknown> | null | undefined,
+): User {
+  if (!row) return user;
+
+  const presentationTags = stringArrayField(row.intimacy_preferences);
+
+  return {
+    ...user,
+    intimacyRole: readIntimacyRole(row),
+    presentationTags,
+    relationshipFramework:
+      (row.relationship_intent as string | null | undefined) || undefined,
+    relationalRelationship:
+      (row.looking_for as string | null | undefined) || undefined,
+    showPreferencesPublicly: row.show_preferences_publicly === true,
+  };
+}
+
+export const getCurrentUserPreferences = async () => {
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseConfig.auth.getSession();
+
+    if (sessionError) {
+      logSupabaseError("getCurrentUserPreferences auth.getSession", sessionError);
+      throw new Error(sessionError.message);
+    }
+
+    if (!session?.user?.id) {
+      return null;
+    }
+
+    const { data, error } = await supabaseConfig
+      .from("user_preferences")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      logSupabaseError("getCurrentUserPreferences select user_preferences", error);
+      throw new Error(error.message);
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+export const getUserPreferencesById = async (userId: string) => {
+  try {
+    const { data, error } = await supabaseConfig
+      .from("user_preferences")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      logSupabaseError("getUserPreferencesById select user_preferences", error);
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+};
 
 export const getProfileById = async (profileId: string) => {
   try {
@@ -299,9 +438,15 @@ export const getProfileById = async (profileId: string) => {
       };
     }
 
+    const preferencesRow = await getUserPreferencesById(profileId);
+    const user = applyPreferencesRowToUser(
+      mapUserProfileRowToUser(data as Record<string, unknown>),
+      preferencesRow as Record<string, unknown> | null,
+    );
+
     return {
       success: true as const,
-      user: mapUserProfileRowToUser(data as Record<string, unknown>),
+      user,
       message: undefined as string | undefined,
     };
   } catch (error) {
@@ -313,7 +458,6 @@ export const getProfileById = async (profileId: string) => {
     };
   }
 };
-
 export const getCurrentUserProfile = async () => {
   try {
     const {
@@ -334,7 +478,7 @@ export const getCurrentUserProfile = async () => {
       .from("user_profiles")
       .select("*")
       .eq("id", session.user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       logSupabaseError("getCurrentUserProfile select user_profiles", error);
@@ -342,7 +486,10 @@ export const getCurrentUserProfile = async () => {
     }
 
     return data;
-  } catch {
+  } catch (error) {
+    logSupabaseError("getCurrentUserProfile", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 };
