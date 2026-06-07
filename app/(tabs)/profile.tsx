@@ -7,28 +7,45 @@ import { router } from 'expo-router';
 import { Edit2, Plus, Trash2, Settings, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
+import { PreferencePicker } from '@/components/PreferencePicker';
 import { useEffect, useState } from 'react';
 import { getCurrentUserProfilePhotos, saveCurrentUserProfilePhotos } from '@/services/profilePhotos';
 import { createUserProfile, getCurrentUserProfile, mapUserProfileRowToUser } from '@/services/users';
 import type { User } from '@/types/user';
 import { useAuthStore } from '@/src/store/useAuthStore';
-
+import { BODY_TYPE_OPTIONS, HEIGHT_OPTIONS, type HeightString } from '@/types/preferences';
 const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
-
-const BODY_TYPE_OPTIONS = [
-  'athletic',
-  'soft',
-  'curvy',
-  'muscular',
-  'plus-size',
-  'lean',
-  'prefer not to say',
-] as const;
 
 function formatBodyTypeLabel(value: string): string {
   if (value === 'prefer not to say') return 'Prefer not to say';
-  if (value === 'plus-size') return 'Plus-size';
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return value
+    .split('/')
+    .map((part) => part.trim())
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' / ');
+}
+
+function parseFeetInchesToCm(height: string): number | null {
+  const match = height.trim().match(/^(\d)'(\d{1,2})$/);
+  if (!match) return null;
+
+  const feet = Number.parseInt(match[1], 10);
+  const inches = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(feet) || !Number.isFinite(inches) || inches >= 12) {
+    return null;
+  }
+
+  return Math.round((feet * 12 + inches) * 2.54);
+}
+
+function cmToHeightString(cm: number): HeightString | '' {
+  const totalInches = Math.round(cm / 2.54);
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
+  const candidate = `${feet}'${inches}` as HeightString;
+  return HEIGHT_OPTIONS.some((option) => option.height === candidate)
+    ? candidate
+    : '';
 }
 
 function strField(row: Record<string, unknown>, ...keys: string[]): string {
@@ -147,11 +164,12 @@ export default function ProfileScreen() {
       setPhotos(photoList);
       setProfileImage(photoList[0]);
 
+      const heightCm = typeof r.height_cm === 'number' ? r.height_cm : null;
       setProfileInfo({
         name: u.display_name ?? '',
         age: u.age > 0 ? String(u.age) : '',
         bio: u.bio ?? '',
-        height: numberField(r, 'height_cm', 'height'),
+        height: heightCm != null ? cmToHeightString(heightCm) : strField(r, 'height'),
         bodyType: strField(r, 'body_type', 'bodyType'),
         ethnicity: strField(r, 'ethnicity'),
         location:
@@ -275,7 +293,7 @@ export default function ProfileScreen() {
         display_name: profileInfo.name,
         bio: profileInfo.bio,
         date_of_birth: dateOfBirthFromAge(profileInfo.age),
-        height_cm: parseOptionalInteger(profileInfo.height),
+        height_cm: parseFeetInchesToCm(profileInfo.height),
         body_type: profileInfo.bodyType.trim() || null,
         ethnicity: profileInfo.ethnicity,
         profile_picture_url: profilePictureUrl,
@@ -400,50 +418,21 @@ export default function ProfileScreen() {
               maxLength={300}
             />
           </View>
-          
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Height (cm)</Text>
-            <TextInput
-              style={[styles.fieldInput, { color: colors.text, borderColor: colors.border }]}
-              value={profileInfo.height}
-              onChangeText={(text) => handleChange("height", text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              maxLength={3}
-              placeholder="Height"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
+          <PreferencePicker
+            label="Height"
+            variant="list"
+            options={HEIGHT_OPTIONS.map((option) => ({ value: option.height }))}
+            selectedValue={profileInfo.height}
+            onSelect={(value) => handleChange('height', value)}
+          />
 
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Body type</Text>
-            <View style={styles.bodyTypeOptions}>
-              {BODY_TYPE_OPTIONS.map((option) => {
-                const selected = profileInfo.bodyType === option;
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.bodyTypeChip,
-                      {
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary : colors.cardBackground,
-                      },
-                    ]}
-                    onPress={() => handleChange('bodyType', option)}
-                  >
-                    <Text
-                      style={[
-                        styles.bodyTypeChipText,
-                        { color: selected ? '#FFFFFF' : colors.text },
-                      ]}
-                    >
-                      {formatBodyTypeLabel(option)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          <PreferencePicker
+            label="Body type"
+            options={BODY_TYPE_OPTIONS.map((option) => ({ value: option.bodyType }))}
+            selectedValue={profileInfo.bodyType}
+            onSelect={(value) => handleChange('bodyType', value)}
+            formatLabel={formatBodyTypeLabel}
+          />
           
           <View style={styles.fieldContainer}>
             <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Ethnicity</Text>
@@ -489,7 +478,7 @@ export default function ProfileScreen() {
             <View style={styles.detailItem}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Height</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>
-                {profileInfo.height ? `${profileInfo.height} cm` : '—'}
+                {profileInfo.height || '—'}
               </Text>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
@@ -741,21 +730,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontFamily: 'Inter-Regular',
     fontSize: 16,
-  },
-  bodyTypeOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  bodyTypeChip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  bodyTypeChipText: {
-    fontSize: 13,
-    fontFamily: 'Inter-Medium',
   },
   bioInput: {
     height: 120,
