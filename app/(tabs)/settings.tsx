@@ -216,7 +216,7 @@ export default function SettingsScreen() {
               <SettingItem
                 icon={<Users size={22} color={colors.primary} />}
                 title="Intimacy preferences"
-                onPress={() => router.push('/(tabs)/profile')}
+                onPress={() => router.push('/preferences/intimacy')}
               />
 
               <SettingItem

@@ -23,6 +23,17 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
+/** Logged-in users can open tab screens plus these stack routes outside (tabs). */
+function isAuthenticatedAppRoute(segments: string[]): boolean {
+  const root = segments[0];
+  if (!root) return false;
+  if (root === '(tabs)') return true;
+  if (root === 'preferences') return true;
+  if (root === 'profile') return true;
+  if (root === 'chat') return true;
+  return false;
+}
+
 function SessionGate() {
   const router = useRouter();
   const segments = useSegments();
@@ -68,9 +79,9 @@ function SessionGate() {
     }
 
     const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
+    const inAppRoute = isAuthenticatedAppRoute(segments);
 
-    if (user && !inTabsGroup) {
+    if (user && !inAppRoute) {
       router.replace('/(tabs)');
     } else if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
@@ -81,6 +92,9 @@ function SessionGate() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="preferences" options={{ headerShown: false }} />
+      <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen name="chat" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
