@@ -12,26 +12,38 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/contexts/ThemeContext';
-import { router } from 'expo-router';
+import { goBackFromFiltering } from '@/utils/navigation';
 import { ArrowLeft, SlidersHorizontal } from 'lucide-react-native';
+import { MultiPreferencePicker, PreferencePicker } from '@/components/PreferencePicker';
 import { getCurrentUserPreferences, saveUserPreferences } from '@/services/users';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { BODY_TYPE_OPTIONS } from '@/types/preferences';
+import {
+  BODY_TYPE_OPTIONS,
+  HEIGHT_OPTIONS,
+  IDENTITY_TAG_OPTIONS,
+  INTIMACY_ROLE_OPTIONS,
+  RELATIONAL_OPTIONS,
+  RELATIONSHIP_OPTIONS,
+} from '@/types/preferences';
 import {
   DEFAULT_DISCOVERY_PREFERENCES,
   discoveryFormFromPreferencesRow,
   filteringToPreferencesPatch,
   RELATIONSHIP_STATUS_FILTER_OPTIONS,
+  toggleFilterValue,
   type DiscoveryPreferencesForm,
 } from '@/utils/discoveryPreferences';
 
-function formatBodyTypeLabel(value: string): string {
+function formatTypeLabel(value: string): string {
+  if (value === 'prefer not to say') return 'Prefer not to say';
   return value
     .split('/')
     .map((part) => part.trim())
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' / ');
 }
+
+const ANY_HEIGHT = '';
 
 export default function FilteringPreferences() {
   const { colors } = useTheme();
@@ -50,41 +62,42 @@ export default function FilteringPreferences() {
     })();
   }, []);
 
-  const toggleOption = (
-    category: 'bodyTypes' | 'relationshipStatusFilter',
-    option: string,
-  ) => {
-    const current = filters[category];
-    setFilters({
-      ...filters,
-      [category]: current.includes(option)
-        ? current.filter((item) => item !== option)
-        : [...current, option],
-    });
+  const patchFilters = (patch: Partial<DiscoveryPreferencesForm>) => {
+    setFilters((current) => ({ ...current, ...patch }));
+  };
+
+  const toggleMulti = (field: keyof Pick<
+    DiscoveryPreferencesForm,
+    | 'bodyTypes'
+    | 'relationshipStatusFilter'
+    | 'intimacyRoles'
+    | 'identityTags'
+    | 'relationshipIntents'
+    | 'lookingFor'
+  >, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [field]: toggleFilterValue(current[field], value),
+    }));
   };
 
   const updateMinAge = (value: string) => {
     const newMinAge = parseInt(value, 10) || 18;
-    setFilters({
-      ...filters,
+    patchFilters({
       ageRange: [Math.min(newMinAge, filters.ageRange[1]), filters.ageRange[1]],
     });
   };
 
   const updateMaxAge = (value: string) => {
     const newMaxAge = parseInt(value, 10) || 65;
-    setFilters({
-      ...filters,
+    patchFilters({
       ageRange: [filters.ageRange[0], Math.max(newMaxAge, filters.ageRange[0])],
     });
   };
 
   const updateDistance = (value: string) => {
     const newDistance = parseInt(value, 10) || 1;
-    setFilters({
-      ...filters,
-      maxDistanceMiles: Math.max(1, newDistance),
-    });
+    patchFilters({ maxDistanceMiles: Math.max(1, newDistance) });
   };
 
   const handleSave = async () => {
@@ -108,47 +121,20 @@ export default function FilteringPreferences() {
     }
 
     Alert.alert('Saved', 'Your browse filters were updated.');
-    router.back();
+    goBackFromFiltering();
   };
 
-  const OptionToggle = ({
-    category,
-    option,
-    label,
-  }: {
-    category: 'bodyTypes' | 'relationshipStatusFilter';
-    option: string;
-    label?: string;
-  }) => (
-    <TouchableOpacity
-      style={[
-        styles.toggleOption,
-        {
-          backgroundColor: filters[category].includes(option)
-            ? colors.primary
-            : colors.cardBackground,
-          borderColor: colors.border,
-        },
-      ]}
-      onPress={() => toggleOption(category, option)}
-    >
-      <Text
-        style={[
-          styles.toggleOptionText,
-          { color: filters[category].includes(option) ? '#ffffff' : colors.text },
-        ]}
-      >
-        {label ?? option}
-      </Text>
-    </TouchableOpacity>
-  );
+  const heightOptions = [
+    { value: ANY_HEIGHT, label: 'Any' },
+    ...HEIGHT_OPTIONS.map((option) => ({ value: option.height })),
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={goBackFromFiltering}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Filtering Options</Text>
@@ -165,122 +151,161 @@ export default function FilteringPreferences() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <SlidersHorizontal size={20} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Age Range</Text>
+            <Text style={[styles.intro, { color: colors.textSecondary }]}>
+              Uses the same options as profile preferences. Leave sections empty to see
+              everyone in that category.
+            </Text>
+
+            <View style={[styles.formCard, { backgroundColor: colors.cardBackground }]}>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <SlidersHorizontal size={20} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Age range</Text>
+                </View>
+                <View style={styles.rangeInputContainer}>
+                  <View style={styles.inputWrapper}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Min</Text>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        { borderColor: colors.border, backgroundColor: colors.background },
+                      ]}
+                    >
+                      <TextInput
+                        style={[styles.input, { color: colors.text }]}
+                        value={filters.ageRange[0].toString()}
+                        onChangeText={updateMinAge}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+                    </View>
+                  </View>
+                  <Text style={[styles.rangeDivider, { color: colors.textSecondary }]}>to</Text>
+                  <View style={styles.inputWrapper}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Max</Text>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        { borderColor: colors.border, backgroundColor: colors.background },
+                      ]}
+                    >
+                      <TextInput
+                        style={[styles.input, { color: colors.text }]}
+                        value={filters.ageRange[1].toString()}
+                        onChangeText={updateMaxAge}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+                    </View>
+                  </View>
+                </View>
               </View>
-              <View style={styles.rangeInputContainer}>
-                <View style={styles.inputWrapper}>
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Min</Text>
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <SlidersHorizontal size={20} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Distance</Text>
+                </View>
+                <View style={styles.distanceInputContainer}>
                   <View
                     style={[
                       styles.inputContainer,
-                      { borderColor: colors.border, backgroundColor: colors.cardBackground },
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: colors.background,
+                        flex: 1,
+                      },
                     ]}
                   >
                     <TextInput
                       style={[styles.input, { color: colors.text }]}
-                      value={filters.ageRange[0].toString()}
-                      onChangeText={updateMinAge}
+                      value={filters.maxDistanceMiles.toString()}
+                      onChangeText={updateDistance}
                       keyboardType="number-pad"
-                      maxLength={2}
+                      maxLength={3}
                     />
                   </View>
-                </View>
-                <Text style={[styles.rangeDivider, { color: colors.textSecondary }]}>to</Text>
-                <View style={styles.inputWrapper}>
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Max</Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      { borderColor: colors.border, backgroundColor: colors.cardBackground },
-                    ]}
-                  >
-                    <TextInput
-                      style={[styles.input, { color: colors.text }]}
-                      value={filters.ageRange[1].toString()}
-                      onChangeText={updateMaxAge}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                    />
-                  </View>
+                  <Text style={[styles.unitText, { color: colors.textSecondary }]}>mi</Text>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <SlidersHorizontal size={20} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Distance</Text>
-              </View>
-              <View style={styles.distanceInputContainer}>
-                <View
-                  style={[
-                    styles.inputContainer,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.cardBackground,
-                      flex: 1,
-                    },
-                  ]}
-                >
-                  <TextInput
-                    style={[styles.input, { color: colors.text }]}
-                    value={filters.maxDistanceMiles.toString()}
-                    onChangeText={updateDistance}
-                    keyboardType="number-pad"
-                    maxLength={3}
-                  />
-                </View>
-                <Text style={[styles.unitText, { color: colors.textSecondary }]}>mi</Text>
-              </View>
-              <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-                Shows people within this distance from you
-              </Text>
-            </View>
+              <PreferencePicker
+                label="Minimum height"
+                variant="list"
+                options={heightOptions}
+                selectedValue={filters.minHeight}
+                onSelect={(value) => patchFilters({ minHeight: value })}
+                maxListHeight={160}
+              />
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <SlidersHorizontal size={20} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Body Type (Optional)
-                </Text>
-              </View>
-              <View style={styles.optionsContainer}>
-                {BODY_TYPE_OPTIONS.map((option) => (
-                  <OptionToggle
-                    key={option.bodyType}
-                    category="bodyTypes"
-                    option={option.bodyType}
-                    label={formatBodyTypeLabel(option.bodyType)}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-                Select multiple options or none to see everyone
-              </Text>
-            </View>
+              <PreferencePicker
+                label="Maximum height"
+                variant="list"
+                options={heightOptions}
+                selectedValue={filters.maxHeight}
+                onSelect={(value) => patchFilters({ maxHeight: value })}
+                maxListHeight={160}
+              />
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <SlidersHorizontal size={20} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Relationship Status (Optional)
-                </Text>
-              </View>
-              <View style={styles.optionsContainer}>
-                {RELATIONSHIP_STATUS_FILTER_OPTIONS.map((option) => (
-                  <OptionToggle
-                    key={option}
-                    category="relationshipStatusFilter"
-                    option={option}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-                Select multiple options or none to see everyone
-              </Text>
+              <MultiPreferencePicker
+                label="Body type"
+                options={BODY_TYPE_OPTIONS.map((option) => ({
+                  value: option.bodyType,
+                  label: formatTypeLabel(option.bodyType),
+                }))}
+                selectedValues={filters.bodyTypes}
+                onToggle={(value) => toggleMulti('bodyTypes', value)}
+              />
+
+              <MultiPreferencePicker
+                label="Intimacy role"
+                options={INTIMACY_ROLE_OPTIONS.map((option) => ({
+                  value: option.role,
+                  label: option.role,
+                }))}
+                selectedValues={filters.intimacyRoles}
+                onToggle={(value) => toggleMulti('intimacyRoles', value)}
+              />
+
+              <MultiPreferencePicker
+                label="I identify as"
+                options={IDENTITY_TAG_OPTIONS.map((option) => ({
+                  value: option.tag,
+                  label: option.tag,
+                }))}
+                selectedValues={filters.identityTags}
+                onToggle={(value) => toggleMulti('identityTags', value)}
+              />
+
+              <MultiPreferencePicker
+                label="Relationship style"
+                options={RELATIONSHIP_OPTIONS.map((option) => ({
+                  value: option.framework,
+                  label: option.framework,
+                }))}
+                selectedValues={filters.relationshipIntents}
+                onToggle={(value) => toggleMulti('relationshipIntents', value)}
+              />
+
+              <MultiPreferencePicker
+                label="Looking for"
+                options={RELATIONAL_OPTIONS.map((option) => ({
+                  value: option.relationship,
+                  label: option.relationship,
+                }))}
+                selectedValues={filters.lookingFor}
+                onToggle={(value) => toggleMulti('lookingFor', value)}
+              />
+
+              <MultiPreferencePicker
+                label="Relationship status"
+                options={RELATIONSHIP_STATUS_FILTER_OPTIONS.map((option) => ({
+                  value: option,
+                  label: option,
+                }))}
+                selectedValues={filters.relationshipStatusFilter}
+                onToggle={(value) => toggleMulti('relationshipStatusFilter', value)}
+              />
             </View>
 
             <TouchableOpacity
@@ -337,17 +362,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 40,
   },
-  section: {
+  intro: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  formCard: {
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 24,
+  },
+  section: {
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Inter-SemiBold',
   },
   rangeInputContainer: {
@@ -382,40 +418,17 @@ const styles = StyleSheet.create({
   distanceInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   unitText: {
     marginLeft: 12,
     fontFamily: 'Inter-Medium',
     fontSize: 16,
   },
-  helperText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    marginTop: 8,
-  },
-  optionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  toggleOption: {
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  toggleOptionText: {
-    fontFamily: 'Inter-Medium',
-    fontSize: 14,
-  },
   saveButton: {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
   },
   saveButtonText: {
     color: '#ffffff',

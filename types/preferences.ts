@@ -121,6 +121,11 @@ export const IDENTITY_TAG_OPTIONS = [
   // maxDistanceMiles         → user_preferences.distance_radius_miles
   // bodyTypes[] (filter)     → user_preferences.body_types
   // relationshipStatusFilter → user_preferences.relationship_status_filter
+  // intimacyRoles[] (filter) → user_preferences.intimacy_roles_filter
+  // identityTags[] (filter)  → user_preferences.identity_tags_filter
+  // relationshipIntents[]    → user_preferences.relationship_intent_filter
+  // lookingFor[] (filter)    → user_preferences.looking_for_filter
+  // minHeight / maxHeight    → user_preferences.height_min_cm / height_max_cm
 
   // ==========================================
   // MAIN COMBINED INTERFACE FOR PROFILE STATE

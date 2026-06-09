@@ -37,6 +37,7 @@ export interface IUserPreferencesPayload {
   height_max_cm?: number | null;
   body_types?: string[] | null;
   relationship_status_filter?: string[] | null;
+  identity_tags?: string[] | null;
   show_online_only?: boolean;
 }
 
@@ -212,8 +213,8 @@ function buildPreferencesBaseRow(
 ): Record<string, unknown> {
   return {
     user_id: payload.user_id,
-    relationship_intent: payload.relationship_intent ?? null,
-    looking_for: payload.looking_for ?? null,
+    relationship_intent: payload.relationship_intent ?? [],
+    looking_for: payload.looking_for ?? [],
     min_age_preference: payload.min_age_preference ?? null,
     max_age_preference: payload.max_age_preference ?? null,
     distance_radius_miles: payload.distance_radius_miles ?? 25,
@@ -225,6 +226,8 @@ function buildPreferencesBaseRow(
     height_max_cm: payload.height_max_cm ?? null,
     body_types: payload.body_types ?? [],
     relationship_status_filter: payload.relationship_status_filter ?? [],
+    intimacy_role: payload.intimacy_role ?? [],
+    identity_tags: payload.identity_tags ?? [],
     show_online_only: payload.show_online_only ?? false,
     updated_at: new Date().toISOString(),
   };
@@ -260,6 +263,10 @@ export function preferencesRowToPayload(
     distance_radius_miles: discovery.maxDistanceMiles,
     body_types: discovery.bodyTypes,
     relationship_status_filter: discovery.relationshipStatusFilter,
+    intimacy_roles: discovery.intimacyRoles,
+    identity_tags: discovery.identityTags,
+    relationship_intent: discovery.relationshipIntents,
+    looking_for_filter: discovery.lookingFor,
     show_online_only: row.show_online_only === true,
     relationship_intent: (row.relationship_intent as string | null | undefined) ?? null,
     looking_for: (row.looking_for as string | null | undefined) ?? null,

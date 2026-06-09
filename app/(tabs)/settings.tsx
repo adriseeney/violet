@@ -203,7 +203,7 @@ export default function SettingsScreen() {
           {/* New Dating Preferences Section */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              DATING PREFERENCES
+              CONNECTION PREFERENCES
             </Text>
 
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>
@@ -243,7 +243,7 @@ export default function SettingsScreen() {
 
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              PREFERENCES
+              DISPLAY PREFERENCES
             </Text>
 
             <View style={[styles.settingsGroup, { backgroundColor: colors.cardBackground }]}>

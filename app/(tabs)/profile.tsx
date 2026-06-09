@@ -28,6 +28,8 @@ import {
   RELATIONSHIP_OPTIONS,
   type HeightString,
 } from '@/types/preferences';
+import { parseFeetInchesToCm, cmToHeightString } from '@/utils/height';
+
 const PLACEHOLDER_PHOTO = '@/assets/images/violet_user_placeholder.png';
 
 function formatTypeLabel(value: string): string {
@@ -37,29 +39,6 @@ function formatTypeLabel(value: string): string {
     .map((part) => part.trim())
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' / ');
-}
-
-function parseFeetInchesToCm(height: string): number | null {
-  const match = height.trim().match(/^(\d)'(\d{1,2})$/);
-  if (!match) return null;
-
-  const feet = Number.parseInt(match[1], 10);
-  const inches = Number.parseInt(match[2], 10);
-  if (!Number.isFinite(feet) || !Number.isFinite(inches) || inches >= 12) {
-    return null;
-  }
-
-  return Math.round((feet * 12 + inches) * 2.54);
-}
-
-function cmToHeightString(cm: number): HeightString | '' {
-  const totalInches = Math.round(cm / 2.54);
-  const feet = Math.floor(totalInches / 12);
-  const inches = totalInches % 12;
-  const candidate = `${feet}'${inches}` as HeightString;
-  return HEIGHT_OPTIONS.some((option) => option.height === candidate)
-    ? candidate
-    : '';
 }
 
 function strField(row: Record<string, unknown>, ...keys: string[]): string {

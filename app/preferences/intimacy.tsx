@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/contexts/ThemeContext';
-import { router } from 'expo-router';
+import { goBackFromPreferences } from '@/utils/navigation';
 import { ArrowLeft } from 'lucide-react-native';
 import { PreferencePicker, MultiPreferencePicker } from '@/components/PreferencePicker';
 import {
@@ -114,7 +114,7 @@ export default function IntimacyPreferencesScreen() {
     }
 
     Alert.alert('Saved', 'Your intimacy preferences were updated.');
-    router.back();
+    goBackFromPreferences();
   };
 
   return (
@@ -122,7 +122,7 @@ export default function IntimacyPreferencesScreen() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={goBackFromPreferences}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Intimacy preferences</Text>
