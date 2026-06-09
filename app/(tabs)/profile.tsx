@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getCurrentUserProfilePhotos, saveCurrentUserProfilePhotos } from '@/services/profilePhotos';
 import {
   applyPreferencesRowToUser,
-  createUserPreferences,
+  saveUserPreferences,
   createUserProfile,
   getCurrentUserPreferences,
   getCurrentUserProfile,
@@ -497,8 +497,7 @@ export default function ProfileScreen() {
 
       let preferencesWarning: string | undefined;
 
-      const preferencesResponse = await createUserPreferences({
-        user_id: authUser.id,
+      const preferencesResponse = await saveUserPreferences(authUser.id, {
         intimacy_role: profileInfo.intimacyRole.trim() || null,
         intimacy_preferences: profileInfo.presentationTags,
         relationship_intent: profileInfo.relationshipFramework.trim() || null,
@@ -508,7 +507,7 @@ export default function ProfileScreen() {
 
       if (!preferencesResponse.success) {
         console.error(
-          '[profile] createUserPreferences failed:',
+          '[profile] saveUserPreferences failed:',
           preferencesResponse.message,
         );
         preferencesWarning =

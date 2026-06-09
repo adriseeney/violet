@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
+import { router, useFocusEffect } from 'expo-router';
 import UserCard from '@/components/UserCard';
 import { SearchBar } from '@/components/SearchBar';
 import { FilterButton } from '@/components/FilterButton';
@@ -40,14 +41,14 @@ export default function BrowseScreen() {
     display_name: profile.display_name || profile.username || 'Unknown',
     email: '',
     age: profile.age ?? 0,
-    gender: profile.gender ?? '',
+    gender: profile.gender_identity ?? profile.gender ?? '',
     distance: profile.distance_miles ?? 0,
     bio: profile.bio ?? '',
     profilePicture: profile.profile_picture_url || 'https://via.placeholder.com/300x300?text=User',
     isOnline: false,
   });
 
-  const loadNearbyUsers = async () => {
+  const loadNearbyUsers = useCallback(async () => {
     if (!coords) {
       setUsers([]);
       return;
@@ -88,13 +89,15 @@ export default function BrowseScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [coords]);
 
-  useEffect(() => {
-    if (permissionStatus === 'granted' && coords) {
-      loadNearbyUsers();
-    }
-  }, [permissionStatus, coords?.latitude, coords?.longitude]);
+  useFocusEffect(
+    useCallback(() => {
+      if (permissionStatus === 'granted' && coords) {
+        void loadNearbyUsers();
+      }
+    }, [permissionStatus, coords?.latitude, coords?.longitude, loadNearbyUsers]),
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -185,7 +188,7 @@ export default function BrowseScreen() {
               </Text>
             ) : null}
           </View>
-          <FilterButton />
+          <FilterButton onPress={() => router.push('/preferences/filtering')} />
         </View>
 
         <SearchBar
@@ -230,8 +233,8 @@ export default function BrowseScreen() {
                     ]}
                   >
                     Other profiles need latitude/longitude, is_discoverable =
-                    true, and a user_preferences row within ~25 mi of your GPS
-                    (see coords in the header).
+                    true, and a user_preferences row within your distance and
+                    filter settings (see Settings → Dating preferences).
                   </Text>
                 ) : null}
               </View>

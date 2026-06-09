@@ -1,5 +1,9 @@
 import { supabaseConfig } from "@/config/supabase-config";
 import type { User } from "@/types/user";
+import {
+  discoveryFormFromPreferencesRow,
+  serializeInterestList,
+} from "@/utils/discoveryPreferences";
 import { logSupabaseError } from "@/utils/logSupabaseError";
 
 export interface IUserProfilePayload {
@@ -29,6 +33,11 @@ export interface IUserPreferencesPayload {
   intimacy_role?: string | null;
   intimacy_preferences?: string[] | null;
   show_preferences_publicly?: boolean;
+  height_min_cm?: number | null;
+  height_max_cm?: number | null;
+  body_types?: string[] | null;
+  relationship_status_filter?: string[] | null;
+  show_online_only?: boolean;
 }
 
 export interface INearbyProfile {
@@ -36,10 +45,13 @@ export interface INearbyProfile {
   username?: string | null;
   age?: number | null;
   gender?: string | null;
+  gender_identity?: string | null;
   display_name?: string | null;
   bio?: string | null;
   profile_picture_url?: string | null;
   distance_miles?: number | null;
+  body_type?: string | null;
+  relationship_status?: string | null;
 }
 
 type UserProfileUpsert = {
@@ -209,7 +221,56 @@ function buildPreferencesBaseRow(
     is_discoverable: payload.is_discoverable ?? true,
     intimacy_preferences: payload.intimacy_preferences ?? [],
     show_preferences_publicly: payload.show_preferences_publicly ?? false,
+    height_min_cm: payload.height_min_cm ?? null,
+    height_max_cm: payload.height_max_cm ?? null,
+    body_types: payload.body_types ?? [],
+    relationship_status_filter: payload.relationship_status_filter ?? [],
+    show_online_only: payload.show_online_only ?? false,
     updated_at: new Date().toISOString(),
+  };
+}
+
+function stringArrayField(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+/** Build a full preferences payload from an existing DB row (for merge-before-save). */
+export function preferencesRowToPayload(
+  userId: string,
+  row: Record<string, unknown> | null | undefined,
+): IUserPreferencesPayload {
+  if (!row) {
+    return {
+      user_id: userId,
+      distance_radius_miles: 25,
+      is_discoverable: true,
+    };
+  }
+
+  const discovery = discoveryFormFromPreferencesRow(row);
+  const interestedInSerialized = serializeInterestList(discovery.interestedIn);
+
+  return {
+    user_id: userId,
+    show_me: interestedInSerialized,
+    show_preference: interestedInSerialized,
+    min_age_preference: discovery.ageRange[0],
+    max_age_preference: discovery.ageRange[1],
+    distance_radius_miles: discovery.maxDistanceMiles,
+    body_types: discovery.bodyTypes,
+    relationship_status_filter: discovery.relationshipStatusFilter,
+    show_online_only: row.show_online_only === true,
+    relationship_intent: (row.relationship_intent as string | null | undefined) ?? null,
+    looking_for: (row.looking_for as string | null | undefined) ?? null,
+    intimacy_role: readIntimacyRole(row) ?? null,
+    intimacy_preferences: stringArrayField(row.intimacy_preferences),
+    show_preferences_publicly: row.show_preferences_publicly === true,
+    is_discoverable: row.is_discoverable !== false,
+    height_min_cm:
+      typeof row.height_min_cm === "number" ? row.height_min_cm : null,
+    height_max_cm:
+      typeof row.height_max_cm === "number" ? row.height_max_cm : null,
   };
 }
 
@@ -335,11 +396,6 @@ export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
   };
 }
 
-function stringArrayField(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === 'string');
-}
-
 /** Merge a `user_preferences` row into the in-app `User` shape. */
 export function applyPreferencesRowToUser(
   user: User,
@@ -392,6 +448,24 @@ export const getCurrentUserPreferences = async () => {
   } catch {
     return null;
   }
+};
+
+/** Merge a partial patch with existing preferences, then upsert. */
+export const saveUserPreferences = async (
+  userId: string,
+  patch: Partial<Omit<IUserPreferencesPayload, "user_id">>,
+) => {
+  const existing = await getCurrentUserPreferences();
+  const merged: IUserPreferencesPayload = {
+    ...preferencesRowToPayload(
+      userId,
+      existing as Record<string, unknown> | null,
+    ),
+    ...patch,
+    user_id: userId,
+  };
+
+  return createUserPreferences(merged);
 };
 
 export const getUserPreferencesById = async (userId: string) => {

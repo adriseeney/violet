@@ -1,32 +1,51 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
 import { ArrowLeft, Check } from 'lucide-react-native';
-
-// Gender options that the user can select from - updated to be more inclusive
-const genderOptions = [
-  "Men", 
-  "Women", 
-  "Trans Men", 
-  "Trans Women", 
-  "Non-binary People", 
-  "Gender Fluid People", 
-  "Everyone"
-];
+import { getCurrentUserPreferences, saveUserPreferences } from '@/services/users';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import {
+  DEFAULT_DISCOVERY_PREFERENCES,
+  discoveryFormFromPreferencesRow,
+  INTEREST_OPTIONS,
+  interestsToPreferencesPatch,
+} from '@/utils/discoveryPreferences';
 
 export default function InterestsPreferences() {
   const { colors } = useTheme();
-  // Update default selection based on user's preference
-  const [selectedInterests, setSelectedInterests] = useState(["Women"]);
-  
+  const authUser = useAuthStore((state) => state.user);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(
+    [...DEFAULT_DISCOVERY_PREFERENCES.interestedIn],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      const row = await getCurrentUserPreferences();
+      const form = discoveryFormFromPreferencesRow(
+        row as Record<string, unknown> | null,
+      );
+      setSelectedInterests(form.interestedIn);
+      setLoading(false);
+    })();
+  }, []);
+
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
-      // Don't remove if it's the last selected option
       if (selectedInterests.length > 1) {
-        setSelectedInterests(selectedInterests.filter(item => item !== interest));
+        setSelectedInterests(selectedInterests.filter((item) => item !== interest));
       }
     } else {
       setSelectedInterests([...selectedInterests, interest]);
@@ -34,12 +53,30 @@ export default function InterestsPreferences() {
   };
 
   const handleSelectAll = () => {
-    setSelectedInterests([...genderOptions]);
+    setSelectedInterests([...INTEREST_OPTIONS]);
   };
 
-  const handleSave = () => {
-    // Here you would typically save these preferences to your backend
-    // For now, we'll just go back to the previous screen
+  const handleSave = async () => {
+    if (!authUser?.id) {
+      Alert.alert('Error', 'You must be logged in to save preferences.');
+      return;
+    }
+
+    setSaving(true);
+
+    const response = await saveUserPreferences(
+      authUser.id,
+      interestsToPreferencesPatch(selectedInterests),
+    );
+
+    setSaving(false);
+
+    if (!response.success) {
+      Alert.alert('Error', response.message ?? 'Could not save preferences.');
+      return;
+    }
+
+    Alert.alert('Saved', 'Your interests were updated.');
     router.back();
   };
 
@@ -48,77 +85,92 @@ export default function InterestsPreferences() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>I'm interested in</Text>
           <View style={styles.rightPlaceholder} />
         </View>
-        
-        <ScrollView 
-          style={styles.scrollView} 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Select the people you're interested in meeting
-          </Text>
-          
-          <View style={styles.interestsContainer}>
-            {genderOptions.map((interest) => (
-              <TouchableOpacity
-                key={interest}
-                style={[
-                  styles.interestButton,
-                  { 
-                    backgroundColor: selectedInterests.includes(interest) ? colors.primary : colors.cardBackground,
-                    borderColor: colors.border
-                  }
-                ]}
-                onPress={() => toggleInterest(interest)}
-              >
-                <Text
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Select the people you're interested in meeting
+            </Text>
+
+            <View style={styles.interestsContainer}>
+              {INTEREST_OPTIONS.map((interest) => (
+                <TouchableOpacity
+                  key={interest}
                   style={[
-                    styles.interestText,
-                    { color: selectedInterests.includes(interest) ? '#ffffff' : colors.text }
+                    styles.interestButton,
+                    {
+                      backgroundColor: selectedInterests.includes(interest)
+                        ? colors.primary
+                        : colors.cardBackground,
+                      borderColor: colors.border,
+                    },
                   ]}
+                  onPress={() => toggleInterest(interest)}
                 >
-                  {interest}
-                </Text>
-                {selectedInterests.includes(interest) && (
-                  <View style={styles.checkContainer}>
-                    <Check size={16} color="#ffffff" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Text
+                    style={[
+                      styles.interestText,
+                      {
+                        color: selectedInterests.includes(interest)
+                          ? '#ffffff'
+                          : colors.text,
+                      },
+                    ]}
+                  >
+                    {interest}
+                  </Text>
+                  {selectedInterests.includes(interest) && (
+                    <View style={styles.checkContainer}>
+                      <Check size={16} color="#ffffff" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <TouchableOpacity
-            style={[styles.selectAllButton, { borderColor: colors.border }]}
-            onPress={handleSelectAll}
-          >
-            <Text style={[styles.selectAllText, { color: colors.primary }]}>
-              Select Everyone
-            </Text>
-          </TouchableOpacity>
-          
-          <View style={styles.noteContainer}>
-            <Text style={[styles.noteText, { color: colors.textSecondary }]}>
-              This helps us show you more relevant people. Your preferences are private by default and can be changed at any time.
-            </Text>
-          </View>
+            <TouchableOpacity
+              style={[styles.selectAllButton, { borderColor: colors.border }]}
+              onPress={handleSelectAll}
+            >
+              <Text style={[styles.selectAllText, { color: colors.primary }]}>
+                Select Everyone
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
-          >
-            <Text style={styles.saveButtonText}>Save Preferences</Text>
-          </TouchableOpacity>
-        </ScrollView>
+            <View style={styles.noteContainer}>
+              <Text style={[styles.noteText, { color: colors.textSecondary }]}>
+                This helps us show you more relevant people. Your preferences are private
+                and can be changed at any time.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Preferences</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -147,6 +199,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subtitle: {
     fontSize: 16,
@@ -219,4 +276,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     fontSize: 16,
   },
-}); 
+});

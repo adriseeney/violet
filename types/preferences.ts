@@ -116,6 +116,11 @@ export const IDENTITY_TAG_OPTIONS = [
   // relationshipFramework  → user_preferences.relationship_intent
   // relationalRelationship → user_preferences.looking_for
   // showPreferencesPublicly→ user_preferences.show_preferences_publicly
+  // interestedIn[]           → user_preferences.show_me / show_preference (comma-separated)
+  // ageRange                 → user_preferences.min_age_preference / max_age_preference
+  // maxDistanceMiles         → user_preferences.distance_radius_miles
+  // bodyTypes[] (filter)     → user_preferences.body_types
+  // relationshipStatusFilter → user_preferences.relationship_status_filter
 
   // ==========================================
   // MAIN COMBINED INTERFACE FOR PROFILE STATE

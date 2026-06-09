@@ -18,10 +18,10 @@ import { ArrowLeft } from 'lucide-react-native';
 import { PreferencePicker, MultiPreferencePicker } from '@/components/PreferencePicker';
 import {
   applyPreferencesRowToUser,
-  createUserPreferences,
   getCurrentUserPreferences,
   mapUserProfileRowToUser,
   getCurrentUserProfile,
+  saveUserPreferences,
 } from '@/services/users';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import {
@@ -98,8 +98,7 @@ export default function IntimacyPreferencesScreen() {
 
     setSaving(true);
 
-    const response = await createUserPreferences({
-      user_id: authUser.id,
+    const response = await saveUserPreferences(authUser.id, {
       intimacy_role: form.intimacyRole.trim() || null,
       intimacy_preferences: form.presentationTags,
       relationship_intent: form.relationshipFramework.trim() || null,
