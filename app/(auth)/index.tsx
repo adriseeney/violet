@@ -1,9 +1,12 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight } from 'lucide-react-native';
+
+const VIOLET_LOGO_URL =
+  'https://tozcnwpdzolqolgyijxr.supabase.co/storage/v1/object/sign/brand%20assets/violet%20logo%202.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lZDdhNGMzYy05ZTVhLTQ2OGItOGJhOC04ZjBlNjE5YWM1MGIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJicmFuZCBhc3NldHMvdmlvbGV0IGxvZ28gMi5wbmciLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgxMDU4NTU3LCJleHAiOjI0MTE3Nzg1NTd9.ei3yO11VBFttYmUOeysc6v9dFJOKlf2S6wPBDkzq-EM';
 
 export default function Welcome() {
   const { colors } = useTheme();
@@ -15,21 +18,24 @@ export default function Welcome() {
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
-          <View style={styles.logoContainer}>
-          <Text style={[styles.logo, { color: colors.primary, fontFamily: 'Times New Roman', textTransform: 'uppercase', letterSpacing: 60 }]}>
-  Violet
-</Text>
-          </View>
-          
-          <View style={styles.titleContainer}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              
-            </Text>
+          <View style={styles.hero}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={{ uri: VIOLET_LOGO_URL }}
+                style={styles.logoImage}
+                resizeMode="contain"
+                accessibilityLabel="Violet logo"
+              />
+              <Text style={[styles.logoText, { color: colors.primary }]}>
+                Violet
+              </Text>
+            </View>
+
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Chat, meet and connect with women near you
             </Text>
           </View>
-          
+
           <View style={styles.buttonContainer}>
             <Pressable
               style={[styles.button, { backgroundColor: colors.primary }]}
@@ -64,36 +70,43 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 40,
+  },
+  hero: {
+    alignItems: 'center',
+    width: '100%',
+    gap: 24,
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: 48,
   },
-  logo: {
-    fontFamily: 'Inter-Bold',
+  logoImage: {
+    width: 220,
+    height: 220,
+    marginBottom: 12,
+  },
+  logoText: {
+    fontFamily: 'Times New Roman',
     fontSize: 42,
-  },
-  titleContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontFamily: 'Inter-Bold',
-    fontSize: 32,
+    textTransform: 'uppercase',
+    letterSpacing: 60,
     textAlign: 'center',
-    marginBottom: 16,
   },
   subtitle: {
     fontFamily: 'Inter-Regular',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
+    paddingHorizontal: 20,
+    maxWidth: 320,
   },
   buttonContainer: {
     width: '100%',
-    marginBottom: 48,
+    maxWidth: 360,
     gap: 16,
+    alignItems: 'center',
   },
   button: {
     flexDirection: 'row',
