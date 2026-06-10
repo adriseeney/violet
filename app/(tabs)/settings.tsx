@@ -1,21 +1,69 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import {
   ChevronRight, Bell, Shield, Eye, Moon, MapPin,
   Trash2, LogOut, HelpCircle, FileText, Heart, Users, Filter
 } from 'lucide-react-native';
+import {
+  DEFAULT_ACCOUNT_SETTINGS,
+  getAccountSettings,
+  saveAccountSettings,
+  type AccountSettings,
+} from '@/services/userSettings';
 
 export default function SettingsScreen() {
   const { colors, toggleTheme, isDark } = useTheme();
   const signOut = useAuthStore((state) => state.signOut);
-  const [showLocation, setShowLocation] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [showOnline, setShowOnline] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<keyof AccountSettings | null>(null);
+  const [accountSettings, setAccountSettings] = useState<AccountSettings>({
+    ...DEFAULT_ACCOUNT_SETTINGS,
+  });
+
+  const loadSettings = useCallback(async () => {
+    setSettingsLoading(true);
+
+    const loaded = await getAccountSettings();
+    if (loaded) {
+      setAccountSettings(loaded);
+    }
+
+    setSettingsLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadSettings();
+    }, [loadSettings]),
+  );
+
+  const persistSetting = async (
+    key: keyof AccountSettings,
+    value: boolean,
+    previous: AccountSettings,
+  ) => {
+    setSavingKey(key);
+
+    const response = await saveAccountSettings({ [key]: value });
+
+    setSavingKey(null);
+
+    if (!response.success) {
+      setAccountSettings(previous);
+      Alert.alert('Could not save', response.message ?? 'Please try again.');
+    }
+  };
+
+  const updateSetting = (key: keyof AccountSettings, value: boolean) => {
+    const previous = accountSettings;
+    setAccountSettings((current) => ({ ...current, [key]: value }));
+    void persistSetting(key, value, previous);
+  };
 
   const confirmOnWeb = (message: string) => {
     const confirm = (globalThis as { confirm?: (message?: string) => boolean }).confirm;
@@ -95,11 +143,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const toggleLocationVisibility = () => {
-    const newValue = !showLocation;
-    setShowLocation(newValue);
-  };
-
   type SettingItemProps = {
     icon: React.ReactNode;
     title: string;
@@ -108,7 +151,7 @@ export default function SettingsScreen() {
     rightElement?: React.ReactNode;
     danger?: boolean;
   };
-  
+
   const SettingItem = ({
     icon,
     title,
@@ -135,7 +178,7 @@ export default function SettingsScreen() {
             {title}
           </Text>
         </View>
-  
+
         {rightElement ? (
           rightElement
         ) : showChevron ? (
@@ -144,6 +187,32 @@ export default function SettingsScreen() {
       </TouchableOpacity>
     );
   };
+
+  const switchTrackColor = {
+    false: colors.border,
+    true: Platform.OS === 'ios' ? colors.primary : colors.primaryTransparent,
+  };
+
+  const renderSwitch = (
+    key: keyof AccountSettings,
+    value: boolean,
+    onValueChange: (next: boolean) => void,
+  ) => (
+    <View style={styles.switchWrap}>
+      {savingKey === key ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          disabled={settingsLoading || savingKey !== null}
+          trackColor={switchTrackColor}
+          thumbColor={Platform.OS === 'android' ? colors.primary : '#fff'}
+          ios_backgroundColor={colors.border}
+        />
+      )}
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -173,34 +242,25 @@ export default function SettingsScreen() {
               <SettingItem
                 icon={<MapPin size={22} color={colors.primary} />}
                 title="Location"
-                rightElement={
-                  <Switch
-                    value={showLocation}
-                    onValueChange={toggleLocationVisibility}
-                    trackColor={{ false: colors.border, true: Platform.OS === 'ios' ? colors.primary : colors.primaryTransparent }}
-                    thumbColor={Platform.OS === 'android' ? colors.primary : '#fff'}
-                    ios_backgroundColor={colors.border}
-                  />
-                }
+                rightElement={renderSwitch(
+                  'showLocation',
+                  accountSettings.showLocation,
+                  (value) => updateSetting('showLocation', value),
+                )}
               />
 
               <SettingItem
                 icon={<Bell size={22} color={colors.primary} />}
                 title="Notifications"
-                rightElement={
-                  <Switch
-                    value={notifications}
-                    onValueChange={setNotifications}
-                    trackColor={{ false: colors.border, true: Platform.OS === 'ios' ? colors.primary : colors.primaryTransparent }}
-                    thumbColor={Platform.OS === 'android' ? colors.primary : '#fff'}
-                    ios_backgroundColor={colors.border}
-                  />
-                }
+                rightElement={renderSwitch(
+                  'notificationsEnabled',
+                  accountSettings.notificationsEnabled,
+                  (value) => updateSetting('notificationsEnabled', value),
+                )}
               />
             </View>
           </View>
 
-          {/* New Dating Preferences Section */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               CONNECTION PREFERENCES
@@ -228,15 +288,11 @@ export default function SettingsScreen() {
               <SettingItem
                 icon={<Eye size={22} color={colors.primary} />}
                 title="Show me online"
-                rightElement={
-                  <Switch
-                    value={showOnline}
-                    onValueChange={setShowOnline}
-                    trackColor={{ false: colors.border, true: Platform.OS === 'ios' ? colors.primary : colors.primaryTransparent }}
-                    thumbColor={Platform.OS === 'android' ? colors.primary : '#fff'}
-                    ios_backgroundColor={colors.border}
-                  />
-                }
+                rightElement={renderSwitch(
+                  'showOnlineStatus',
+                  accountSettings.showOnlineStatus,
+                  (value) => updateSetting('showOnlineStatus', value),
+                )}
               />
             </View>
           </View>
@@ -254,7 +310,7 @@ export default function SettingsScreen() {
                   <Switch
                     value={isDark}
                     onValueChange={toggleTheme}
-                    trackColor={{ false: colors.border, true: Platform.OS === 'ios' ? colors.primary : colors.primaryTransparent }}
+                    trackColor={switchTrackColor}
                     thumbColor={Platform.OS === 'android' ? colors.primary : '#fff'}
                     ios_backgroundColor={colors.border}
                   />
@@ -374,6 +430,11 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
+  },
+  switchWrap: {
+    width: 52,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   versionText: {
     textAlign: 'center',

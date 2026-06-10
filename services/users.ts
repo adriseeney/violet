@@ -268,7 +268,6 @@ export function preferencesRowToPayload(
     relationship_intent: discovery.relationshipIntents,
     looking_for_filter: discovery.lookingFor,
     show_online_only: row.show_online_only === true,
-    relationship_intent: (row.relationship_intent as string | null | undefined) ?? null,
     looking_for: (row.looking_for as string | null | undefined) ?? null,
     intimacy_role: readIntimacyRole(row) ?? null,
     intimacy_preferences: stringArrayField(row.intimacy_preferences),
