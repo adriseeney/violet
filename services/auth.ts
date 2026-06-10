@@ -1,4 +1,5 @@
 import { supabaseConfig } from "@/config/supabase-config";
+import { deleteCurrentUserProfilePhotosFromStorage } from "@/services/profilePhotos";
 import { logSupabaseError } from "@/utils/logSupabaseError";
 
 export const registerAuthUser = async (payload: {
@@ -112,6 +113,58 @@ export const logoutAuthUser = async () => {
         error instanceof Error
           ? error.message
           : "An error occurred during logout.",
+    };
+  }
+};
+
+export const deleteAuthUserAccount = async () => {
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseConfig.auth.getSession();
+
+    if (sessionError) {
+      logSupabaseError("deleteAuthUserAccount auth.getSession", sessionError);
+      throw new Error(sessionError.message);
+    }
+
+    if (!session?.user?.id) {
+      throw new Error("You must be logged in to delete your account.");
+    }
+
+    const storageCleanup = await deleteCurrentUserProfilePhotosFromStorage();
+    if (!storageCleanup.success) {
+      logSupabaseError(
+        "deleteAuthUserAccount profile photo cleanup",
+        storageCleanup.message ?? "Profile photo cleanup failed.",
+      );
+    }
+
+    const { error: deleteError } = await supabaseConfig.rpc("delete_own_account");
+
+    if (deleteError) {
+      logSupabaseError("deleteAuthUserAccount rpc delete_own_account", deleteError);
+      throw new Error(deleteError.message);
+    }
+
+    const { error: signOutError } = await supabaseConfig.auth.signOut();
+
+    if (signOutError) {
+      logSupabaseError("deleteAuthUserAccount auth.signOut", signOutError);
+    }
+
+    return {
+      success: true,
+      message: "Account deleted successfully.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while deleting your account.",
     };
   }
 };

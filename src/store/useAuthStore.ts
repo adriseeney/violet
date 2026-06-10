@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import {
+  deleteAuthUserAccount,
   getCurrentUserSession,
   loginAuthUser,
   logoutAuthUser,
@@ -22,6 +23,7 @@ type SignUpPayload = SignInPayload & {
 type SignInResult = Awaited<ReturnType<typeof loginAuthUser>>;
 type SignUpResult = Awaited<ReturnType<typeof registerAuthUser>>;
 type SignOutResult = Awaited<ReturnType<typeof logoutAuthUser>>;
+type DeleteAccountResult = Awaited<ReturnType<typeof deleteAuthUserAccount>>;
 
 type AuthSessionState = {
   session: Session | null;
@@ -35,6 +37,7 @@ type AuthStore = AuthSessionState & {
   signIn: (payload: SignInPayload) => Promise<SignInResult>;
   signUp: (payload: SignUpPayload) => Promise<SignUpResult>;
   signOut: () => Promise<SignOutResult>;
+  deleteAccount: () => Promise<DeleteAccountResult>;
 };
 
 const getAuthSessionState = (session: Session | null): AuthSessionState => ({
@@ -89,6 +92,14 @@ export const useAuthStore = create<AuthStore>()(
         set({ ...getAuthSessionState(null), isLoading: true });
 
         const result = await logoutAuthUser();
+        set({ ...getAuthSessionState(null), isLoading: false });
+
+        return result;
+      },
+      deleteAccount: async () => {
+        set({ isLoading: true });
+
+        const result = await deleteAuthUserAccount();
         set({ ...getAuthSessionState(null), isLoading: false });
 
         return result;

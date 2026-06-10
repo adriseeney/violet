@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { router } from 'expo-router';
+import { goBackFromSignup } from '@/utils/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
@@ -113,7 +114,7 @@ export default function Signup() {
       <SafeAreaView style={styles.safeArea}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={goBackFromSignup}
         >
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>

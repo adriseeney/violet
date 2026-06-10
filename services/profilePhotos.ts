@@ -138,6 +138,83 @@ export const uploadCurrentUserProfilePhoto = async (uri: string) => {
   }
 };
 
+/** Best-effort cleanup of uploaded profile photos before account deletion. */
+export const deleteCurrentUserProfilePhotosFromStorage = async () => {
+  try {
+    const userId = await getCurrentUserId();
+    const paths = new Set<string>();
+
+    const { data: listedFiles, error: listError } = await supabaseConfig.storage
+      .from(PROFILE_PHOTOS_BUCKET)
+      .list(userId);
+
+    if (listError) {
+      logSupabaseError(
+        "deleteCurrentUserProfilePhotosFromStorage storage.list",
+        listError,
+      );
+    } else {
+      for (const file of listedFiles ?? []) {
+        if (file.name) {
+          paths.add(`${userId}/${file.name}`);
+        }
+      }
+    }
+
+    const { data: photoRows, error: photosError } = await supabaseConfig
+      .from("user_photos")
+      .select("storage_path, photo_url, url")
+      .eq("user_id", userId);
+
+    if (photosError) {
+      logSupabaseError(
+        "deleteCurrentUserProfilePhotosFromStorage select user_photos",
+        photosError,
+      );
+    } else {
+      for (const photo of photoRows ?? []) {
+        const row = photo as Record<string, unknown>;
+        if (typeof row.storage_path === "string" && row.storage_path.trim() !== "") {
+          paths.add(row.storage_path);
+          continue;
+        }
+
+        const url = photoUrlFromRow(row);
+        const pathFromUrl = url ? storagePathFromPublicUrl(url) : null;
+        if (pathFromUrl) {
+          paths.add(pathFromUrl);
+        }
+      }
+    }
+
+    if (paths.size === 0) {
+      return { success: true };
+    }
+
+    const { error: removeError } = await supabaseConfig.storage
+      .from(PROFILE_PHOTOS_BUCKET)
+      .remove([...paths]);
+
+    if (removeError) {
+      logSupabaseError(
+        "deleteCurrentUserProfilePhotosFromStorage storage.remove",
+        removeError,
+      );
+      throw new Error(removeError.message);
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while deleting profile photos.",
+    };
+  }
+};
+
 export const getCurrentUserProfilePhotos = async () => {
   try {
     const userId = await getCurrentUserId();

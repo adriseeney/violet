@@ -16,7 +16,9 @@ export default function Welcome() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoContainer}>
-            <Text style={[styles.logo, { color: colors.primary }]}>Violet</Text>
+          <Text style={[styles.logo, { color: colors.primary, fontFamily: 'Times New Roman', textTransform: 'uppercase', letterSpacing: 60 }]}>
+  Violet
+</Text>
           </View>
           
           <View style={styles.titleContainer}>

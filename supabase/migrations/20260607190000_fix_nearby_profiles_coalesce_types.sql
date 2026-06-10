@@ -1,4 +1,4 @@
--- Align nearby_profiles with live user_preferences browse filter columns (*_filter).
+-- Fix nearby_profiles: do not COALESCE text columns with text[] (e.g. identity_tags).
 
 drop function if exists public.nearby_profiles(double precision, double precision, uuid) cascade;
 

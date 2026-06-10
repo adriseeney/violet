@@ -20,3 +20,11 @@ export function goBackFromFiltering() {
   // Browse opens filters too; tabs root is a safe fallback when history is empty.
   goBackOrReplace('/(tabs)');
 }
+
+export function goBackFromLogin() {
+  goBackOrReplace('/(auth)');
+}
+
+export function goBackFromSignup() {
+  goBackOrReplace('/(auth)');
+}

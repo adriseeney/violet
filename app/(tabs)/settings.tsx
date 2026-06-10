@@ -19,7 +19,9 @@ import {
 export default function SettingsScreen() {
   const { colors, toggleTheme, isDark } = useTheme();
   const signOut = useAuthStore((state) => state.signOut);
+  const deleteAccount = useAuthStore((state) => state.deleteAccount);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [savingKey, setSavingKey] = useState<keyof AccountSettings | null>(null);
   const [accountSettings, setAccountSettings] = useState<AccountSettings>({
     ...DEFAULT_ACCOUNT_SETTINGS,
@@ -111,14 +113,32 @@ export default function SettingsScreen() {
     );
   };
 
+  const runDeleteAccount = async () => {
+    setDeletingAccount(true);
+
+    const response = await deleteAccount();
+    setDeletingAccount(false);
+
+    if (!response.success) {
+      Alert.alert('Could not delete account', response.message ?? 'Please try again.');
+      return;
+    }
+
+    router.replace('/(auth)/login');
+  };
+
   const handleDeleteAccount = () => {
+    if (deletingAccount) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       const confirmed = confirmOnWeb(
-        'Are you sure you want to delete your account? This action cannot be undone.',
+        'Are you sure you want to delete your account? This permanently removes your profile, messages, and photos.',
       );
 
       if (confirmed) {
-        void runSignOut('Action failed');
+        void runDeleteAccount();
       }
 
       return;
@@ -126,7 +146,7 @@ export default function SettingsScreen() {
 
     Alert.alert(
       'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
+      'This permanently removes your profile, messages, and photos. This action cannot be undone.',
       [
         {
           text: 'Cancel',
@@ -135,8 +155,8 @@ export default function SettingsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            await runSignOut('Action failed');
+          onPress: () => {
+            void runDeleteAccount();
           },
         },
       ]
@@ -361,9 +381,15 @@ export default function SettingsScreen() {
 
               <SettingItem
                 icon={<Trash2 size={22} color={colors.error} />}
-                title="Delete Account"
+                title={deletingAccount ? 'Deleting account...' : 'Delete Account'}
                 danger
-                onPress={handleDeleteAccount}
+                showChevron={!deletingAccount}
+                onPress={deletingAccount ? undefined : handleDeleteAccount}
+                rightElement={
+                  deletingAccount ? (
+                    <ActivityIndicator size="small" color={colors.error} />
+                  ) : undefined
+                }
               />
             </View>
           </View>
