@@ -6,6 +6,11 @@ import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, MessageCircle, MapPin, X, Lock, Image as ImageIcon, ChevronRight } from 'lucide-react-native';
 import { formatDistanceMiles } from '@/utils/formatDistance';
+import {
+  canViewerSeeLocation,
+  canViewerSeeOnlineStatus,
+  resolvePublicDistanceMiles,
+} from '@/utils/profileVisibility';
 import { User } from '@/types/user';
 import IntimacyPreferences from '@/components/IntimacyPreferences';
 import { getOrCreateDm } from '@/services/chat';
@@ -32,6 +37,13 @@ export default function UserProfileScreen() {
   const userLocation = [user?.locationCity, user?.locationState]
     .filter(Boolean)
     .join(', ');
+  const showLocationOnProfile =
+    !!user && canViewerSeeLocation(user.showLocation) && userLocation.length > 0;
+  const visibleDistance = user
+    ? resolvePublicDistanceMiles(user.distance, user.showLocation)
+    : null;
+  const showOnlineOnProfile =
+    !!user && canViewerSeeOnlineStatus(user.showOnlineStatus);
 
   useEffect(() => {
     if (!profileId || typeof profileId !== 'string') {
@@ -57,10 +69,14 @@ export default function UserProfileScreen() {
         return;
       }
 
-      const userWithDistance =
-        Number.isFinite(distanceFromBrowse) && distanceFromBrowse >= 0
-          ? { ...res.user, distance: distanceFromBrowse }
-          : res.user;
+      const canShowDistance =
+        res.user.showLocation !== false &&
+        Number.isFinite(distanceFromBrowse) &&
+        distanceFromBrowse >= 0;
+
+      const userWithDistance = canShowDistance
+        ? { ...res.user, distance: distanceFromBrowse }
+        : res.user;
 
       setUser(userWithDistance);
 
@@ -212,7 +228,7 @@ export default function UserProfileScreen() {
                 source={{ uri: user.profilePicture }} 
                 style={styles.profileImage} 
               />
-              {user.isOnline && (
+              {showOnlineOnProfile && user.isOnline && (
                 <View style={[styles.onlineIndicator, { backgroundColor: colors.success }]} />
               )}
               <View style={styles.photoCountBadge}>
@@ -229,24 +245,26 @@ export default function UserProfileScreen() {
                 {user.gender}
               </Text>
               
-              {userLocation && (
+              {showLocationOnProfile && (
                 <View style={styles.locationContainer}>
                   <MapPin size={14} color={colors.textSecondary} />
                   <Text style={[styles.locationText, { color: colors.textSecondary }]}>
-                    {user.distance > 0
-                      ? `${userLocation} • ${formatDistanceMiles(user.distance)} away`
+                    {visibleDistance != null
+                      ? `${userLocation} • ${formatDistanceMiles(visibleDistance)} away`
                       : userLocation}
                   </Text>
                 </View>
               )}
 
-              <Text style={[styles.lastActive, { color: colors.textSecondary }]}>
-                {user.isOnline
-                  ? 'Online now'
-                  : user.lastActive
-                    ? `Last active ${user.lastActive}`
-                    : 'Offline'}
-              </Text>
+              {showOnlineOnProfile ? (
+                <Text style={[styles.lastActive, { color: colors.textSecondary }]}>
+                  {user.isOnline
+                    ? 'Online now'
+                    : user.lastActive
+                      ? `Last active ${user.lastActive}`
+                      : 'Offline'}
+                </Text>
+              ) : null}
               
               <TouchableOpacity 
                 style={[styles.fullWidthButton, { backgroundColor: colors.primary }]}

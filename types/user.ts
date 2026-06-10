@@ -14,6 +14,10 @@ export interface User {
   interests?: string[];
   lastActive?: string;
   isOnline?: boolean;
+  /** When false, other users should not see city/state or distance. */
+  showLocation?: boolean;
+  /** When false, other users should not see online / last-active status. */
+  showOnlineStatus?: boolean;
   // Additional profile information
   height?: number; // Height in cm
   bodyType?: string;

@@ -5,6 +5,12 @@ import {
   serializeInterestList,
 } from "@/utils/discoveryPreferences";
 import { logSupabaseError } from "@/utils/logSupabaseError";
+import {
+  formatLastActiveLabel,
+  readShowLocationFlag,
+  readShowOnlineStatusFlag,
+  resolvePublicIsOnline,
+} from "@/utils/profileVisibility";
 
 export interface IUserProfilePayload {
   id?: string | null;
@@ -37,7 +43,10 @@ export interface IUserPreferencesPayload {
   height_max_cm?: number | null;
   body_types?: string[] | null;
   relationship_status_filter?: string[] | null;
+  intimacy_roles?: string[] | null;
   identity_tags?: string[] | null;
+  relationship_intents?: string[] | null;
+  seeking?: string[] | null;
   show_online_only?: boolean;
 }
 
@@ -53,6 +62,9 @@ export interface INearbyProfile {
   distance_miles?: number | null;
   body_type?: string | null;
   relationship_status?: string | null;
+  is_online?: boolean | null;
+  show_location?: boolean | null;
+  show_online_status?: boolean | null;
 }
 
 type UserProfileUpsert = {
@@ -213,8 +225,8 @@ function buildPreferencesBaseRow(
 ): Record<string, unknown> {
   return {
     user_id: payload.user_id,
-    relationship_intent: payload.relationship_intent ?? [],
-    looking_for: payload.looking_for ?? [],
+    relationship_intent: payload.relationship_intent ?? null,
+    looking_for: payload.looking_for ?? null,
     min_age_preference: payload.min_age_preference ?? null,
     max_age_preference: payload.max_age_preference ?? null,
     distance_radius_miles: payload.distance_radius_miles ?? 25,
@@ -226,8 +238,10 @@ function buildPreferencesBaseRow(
     height_max_cm: payload.height_max_cm ?? null,
     body_types: payload.body_types ?? [],
     relationship_status_filter: payload.relationship_status_filter ?? [],
-    intimacy_role: payload.intimacy_role ?? [],
-    identity_tags: payload.identity_tags ?? [],
+    intimacy_roles_filter: payload.intimacy_roles ?? [],
+    identity_tags_filter: payload.identity_tags ?? [],
+    relationship_intent_filter: payload.relationship_intents ?? [],
+    looking_for_filter: payload.seeking ?? [],
     show_online_only: payload.show_online_only ?? false,
     updated_at: new Date().toISOString(),
   };
@@ -265,9 +279,10 @@ export function preferencesRowToPayload(
     relationship_status_filter: discovery.relationshipStatusFilter,
     intimacy_roles: discovery.intimacyRoles,
     identity_tags: discovery.identityTags,
-    relationship_intent: discovery.relationshipIntents,
-    looking_for_filter: discovery.lookingFor,
+    relationship_intents: discovery.relationshipIntents,
+    seeking: discovery.lookingFor,
     show_online_only: row.show_online_only === true,
+    relationship_intent: (row.relationship_intent as string | null | undefined) ?? null,
     looking_for: (row.looking_for as string | null | undefined) ?? null,
     intimacy_role: readIntimacyRole(row) ?? null,
     intimacy_preferences: stringArrayField(row.intimacy_preferences),
@@ -369,7 +384,10 @@ function computeAgeFromDob(dateOfBirth: string | null | undefined): number {
 }
 
 /** Map a `user_profiles` row to the in-app `User` shape (viewing another person). */
-export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
+export function mapUserProfileRowToUser(
+  row: Record<string, unknown>,
+  options?: { forPublicView?: boolean },
+): User {
   const city = row.location_city as string | null | undefined;
   const state = row.location_state as string | null | undefined;
   const displayName =
@@ -377,6 +395,12 @@ export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
     (row.username as string | null | undefined) ||
     "Unknown";
   const email = (row.email as string | null | undefined) || "";
+  const showLocation = readShowLocationFlag(row.show_location);
+  const showOnlineStatus = readShowOnlineStatusFlag(row.show_online_status);
+  const lastActiveAt = row.last_active_at as string | null | undefined;
+  const forPublicView = options?.forPublicView === true;
+  const hideLocation = forPublicView && !showLocation;
+  const hideOnline = forPublicView && !showOnlineStatus;
 
   return {
     id: String(row.id),
@@ -390,15 +414,18 @@ export function mapUserProfileRowToUser(row: Record<string, unknown>): User {
     profilePicture:
       (row.profile_picture_url as string | null | undefined) ||
       "https://via.placeholder.com/300x300?text=User",
-    locationCity: city || undefined,
-    locationState: state || undefined,
+    locationCity: hideLocation ? undefined : city || undefined,
+    locationState: hideLocation ? undefined : state || undefined,
     bodyType: (row.body_type as string | null | undefined) || undefined,
     height:
       typeof row.height_cm === 'number' && Number.isFinite(row.height_cm)
         ? row.height_cm
         : undefined,
     ethnicity: (row.ethnicity as string | null | undefined) || undefined,
-    isOnline: false,
+    showLocation,
+    showOnlineStatus,
+    isOnline: resolvePublicIsOnline(showOnlineStatus, lastActiveAt),
+    lastActive: hideOnline ? undefined : formatLastActiveLabel(lastActiveAt),
   };
 }
 
@@ -520,7 +547,7 @@ export const getProfileById = async (profileId: string) => {
 
     const preferencesRow = await getUserPreferencesById(profileId);
     const user = applyPreferencesRowToUser(
-      mapUserProfileRowToUser(data as Record<string, unknown>),
+      mapUserProfileRowToUser(data as Record<string, unknown>, { forPublicView: true }),
       preferencesRow as Record<string, unknown> | null,
     );
 

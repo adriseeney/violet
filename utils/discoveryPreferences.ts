@@ -55,6 +55,18 @@ function stringArrayField(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
+/** Read a browse filter array; prefers *_filter columns on live Supabase. */
+function browseArrayField(
+  row: Record<string, unknown>,
+  filterColumn: string,
+  legacyColumn?: string,
+): string[] {
+  const fromFilter = stringArrayField(row[filterColumn]);
+  if (fromFilter.length > 0) return fromFilter;
+  if (legacyColumn) return stringArrayField(row[legacyColumn]);
+  return [];
+}
+
 export function parseInterestList(value: unknown): string[] {
   if (Array.isArray(value)) {
     const items = value.filter((item): item is string => typeof item === 'string');
@@ -97,10 +109,14 @@ export function discoveryFormFromPreferencesRow(
       typeof row.height_max_cm === 'number' ? cmToHeightString(row.height_max_cm) : '',
     bodyTypes: stringArrayField(row.body_types),
     relationshipStatusFilter: stringArrayField(row.relationship_status_filter),
-    intimacyRoles: stringArrayField(row.intimacy_roles_filter),
-    identityTags: stringArrayField(row.identity_tags_filter),
-    relationshipIntents: stringArrayField(row.relationship_intent_filter),
-    lookingFor: stringArrayField(row.looking_for_filter),
+    intimacyRoles: browseArrayField(row, 'intimacy_roles_filter', 'intimacy_roles'),
+    identityTags: browseArrayField(row, 'identity_tags_filter'),
+    relationshipIntents: browseArrayField(
+      row,
+      'relationship_intent_filter',
+      'relationship_intents',
+    ),
+    lookingFor: browseArrayField(row, 'looking_for_filter', 'seeking'),
   };
 }
 
@@ -121,10 +137,10 @@ export function filteringToPreferencesPatch(form: DiscoveryPreferencesForm) {
     height_max_cm: form.maxHeight ? parseFeetInchesToCm(form.maxHeight) : null,
     body_types: form.bodyTypes,
     relationship_status_filter: form.relationshipStatusFilter,
-    intimacy_roles_filter: form.intimacyRoles,
-    identity_tags_filter: form.identityTags,
-    relationship_intent_filter: form.relationshipIntents,
-    looking_for_filter: form.lookingFor,
+    intimacy_roles: form.intimacyRoles,
+    identity_tags: form.identityTags,
+    relationship_intents: form.relationshipIntents,
+    seeking: form.lookingFor,
   };
 }
 

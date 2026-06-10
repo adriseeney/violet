@@ -45,7 +45,9 @@ export default function BrowseScreen() {
     distance: profile.distance_miles ?? 0,
     bio: profile.bio ?? '',
     profilePicture: profile.profile_picture_url || 'https://via.placeholder.com/300x300?text=User',
-    isOnline: false,
+    isOnline: profile.is_online === true,
+    showLocation: profile.show_location !== false,
+    showOnlineStatus: profile.show_online_status !== false,
   });
 
   const loadNearbyUsers = useCallback(async () => {
@@ -114,7 +116,9 @@ export default function BrowseScreen() {
       user={{
         id: item.id,
         profilePicture: item.profilePicture || 'https://via.placeholder.com/300x300?text=User',
-        isOnline: item.isOnline ?? false,
+        isOnline: item.isOnline,
+        showOnlineStatus: item.showOnlineStatus,
+        showLocation: item.showLocation,
         distance: item.distance,
         username: item.display_name || item.name || 'Unknown',
       }}

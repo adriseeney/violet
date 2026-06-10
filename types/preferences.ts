@@ -119,12 +119,13 @@ export const IDENTITY_TAG_OPTIONS = [
   // interestedIn[]           → user_preferences.show_me / show_preference (comma-separated)
   // ageRange                 → user_preferences.min_age_preference / max_age_preference
   // maxDistanceMiles         → user_preferences.distance_radius_miles
-  // bodyTypes[] (filter)     → user_preferences.body_types
-  // relationshipStatusFilter → user_preferences.relationship_status_filter
-  // intimacyRoles[] (filter) → user_preferences.intimacy_roles_filter
-  // identityTags[] (filter)  → user_preferences.identity_tags_filter
-  // relationshipIntents[]    → user_preferences.relationship_intent_filter
-  // lookingFor[] (filter)    → user_preferences.looking_for_filter
+  // bodyTypes[] (browse)           → user_preferences.body_types
+  // relationshipStatusFilter      → user_preferences.relationship_status_filter
+  // intimacyRoles[] (browse)      → user_preferences.intimacy_roles_filter
+  // identityTags[] (browse)       → user_preferences.identity_tags_filter
+  // relationshipIntents[] (browse)→ user_preferences.relationship_intent_filter
+  // lookingFor[] (browse)         → user_preferences.looking_for_filter
+  // Profile (same row): intimacy_role, intimacy_preferences, relationship_intent, looking_for
   // minHeight / maxHeight    → user_preferences.height_min_cm / height_max_cm
 
   // ==========================================

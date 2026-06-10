@@ -4,14 +4,20 @@ import { MoreVertical, MessageCircle, Star, X } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
 import { formatDistanceMiles } from '@/utils/formatDistance';
+import {
+  canViewerSeeOnlineStatus,
+  resolvePublicDistanceMiles,
+} from '@/utils/profileVisibility';
 import { getOrCreateDm } from '@/services/chat';
 
 interface UserCardProps {
   user: {
     id: string;
     profilePicture: string;
-    isOnline: boolean;
-    distance: number;
+    isOnline?: boolean;
+    showOnlineStatus?: boolean;
+    showLocation?: boolean;
+    distance?: number | null;
     username: string;
   };
   onPress?: () => void;
@@ -23,13 +29,20 @@ export default function UserCard({ user, onPress }: UserCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
 
+  const showOnlineIndicator =
+    canViewerSeeOnlineStatus(user.showOnlineStatus) && user.isOnline === true;
+  const visibleDistance = resolvePublicDistanceMiles(user.distance, user.showLocation);
+
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else {
       router.push({
         pathname: '/profile/[id]',
-        params: { id: user.id, distance: String(user.distance) },
+        params: {
+          id: user.id,
+          ...(visibleDistance != null ? { distance: String(visibleDistance) } : {}),
+        },
       });
     }
   };
@@ -112,14 +125,11 @@ export default function UserCard({ user, onPress }: UserCardProps) {
         </TouchableOpacity>
 
         {/* ONLINE DOT */}
-        <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.dot,
-              { backgroundColor: user.isOnline ? 'green' : 'gray' }
-            ]}
-          />
-        </View>
+        {showOnlineIndicator ? (
+          <View style={styles.statusContainer}>
+            <View style={[styles.dot, { backgroundColor: colors.success }]} />
+          </View>
+        ) : null}
 
         {/* ACTION MENU */}
         {showActions && (
@@ -148,9 +158,11 @@ export default function UserCard({ user, onPress }: UserCardProps) {
           {user.username}
         </Text>
 
-        <Text style={[styles.distanceText, { color: colors.textSecondary }]}>
-          {formatDistanceMiles(user.distance)}
-        </Text>
+        {visibleDistance != null ? (
+          <Text style={[styles.distanceText, { color: colors.textSecondary }]}>
+            {formatDistanceMiles(visibleDistance)}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
