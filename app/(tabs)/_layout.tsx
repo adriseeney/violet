@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Grid, MessageSquare, User, Settings, Compass } from 'lucide-react-native';
+import { Grid, MessageSquare, User, Settings, Sparkles } from 'lucide-react-native';
 import { Platform } from 'react-native';
 
 export default function TabLayout() {
@@ -33,16 +33,15 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* hide explore tab for now 
       <Tabs.Screen
-        name="explore"
+        name="rooms"
         options={{
-          title: 'Explore',
+          title: 'Rooms',
           tabBarIcon: ({ size, color }) => (
-            <Compass size={size} color={color} />
+            <Sparkles size={size} color={color} />
           ),
         }}
-      />*/}
+      />
       <Tabs.Screen
         name="chats"
         options={{

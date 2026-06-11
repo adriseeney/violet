@@ -31,6 +31,7 @@ function isAuthenticatedAppRoute(segments: string[]): boolean {
   if (root === 'preferences') return true;
   if (root === 'profile') return true;
   if (root === 'chat') return true;
+  if (root === 'room') return true;
   return false;
 }
 
@@ -95,6 +96,7 @@ function SessionGate() {
       <Stack.Screen name="preferences" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />
       <Stack.Screen name="chat" options={{ headerShown: false }} />
+      <Stack.Screen name="room" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
