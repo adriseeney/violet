@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,12 +19,20 @@ import { SearchBar } from '@/components/SearchBar';
 import { FilterButton } from '@/components/FilterButton';
 import { User } from '@/types/user';
 import { useLocationContext } from '@/contexts/location-context';
-import { getNearbyProfiles, INearbyProfile, updateCurrentUserLocation } from '@/services/users';
+import {
+  getCurrentUserProfile,
+  getNearbyProfiles,
+  INearbyProfile,
+  updateCurrentUserLocation,
+} from '@/services/users';
 
 const GRID_COLUMNS = 3;
 const GRID_PADDING = 16;
 const GRID_GAP = 8;
 const CARD_FOOTER_HEIGHT = 44;
+const PROFILE_AVATAR_SIZE = 40;
+const PROFILE_PLACEHOLDER =
+  'https://via.placeholder.com/300x300?text=You';
 
 export default function BrowseScreen() {
   const { colors } = useTheme();
@@ -45,6 +54,13 @@ export default function BrowseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [browseError, setBrowseError] = useState<string | null>(null);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+
+  const loadViewerProfile = useCallback(async () => {
+    const row = await getCurrentUserProfile();
+    const url = (row?.profile_picture_url as string | null | undefined)?.trim();
+    setProfilePictureUrl(url || null);
+  }, []);
 
   const mapNearbyToUser = (profile: INearbyProfile): User => ({
     id: profile.id,
@@ -106,17 +122,25 @@ export default function BrowseScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void loadViewerProfile();
+
       if (permissionStatus === 'granted' && coords) {
         void loadNearbyUsers();
       }
-    }, [permissionStatus, coords?.latitude, coords?.longitude, loadNearbyUsers]),
+    }, [
+      permissionStatus,
+      coords?.latitude,
+      coords?.longitude,
+      loadNearbyUsers,
+      loadViewerProfile,
+    ]),
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
 
     try {
-      await refreshLocation();
+      await Promise.all([refreshLocation(), loadViewerProfile()]);
     } finally {
       setRefreshing(false);
     }
@@ -197,7 +221,22 @@ export default function BrowseScreen() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/profile')}
+            style={({ pressed }) => [
+              styles.profileAvatarButton,
+              { borderColor: colors.primary },
+              pressed && styles.profileAvatarPressed,
+            ]}
+            accessibilityLabel="Your profile"
+          >
+            <Image
+              source={{ uri: profilePictureUrl ?? PROFILE_PLACEHOLDER }}
+              style={styles.profileAvatar}
+            />
+          </Pressable>
+
+          <View style={styles.headerText}>
             <Text style={[styles.title, { color: colors.text }]}>Browse</Text>
             {coords ? (
               <Text style={[styles.locationText, { color: colors.textSecondary }]}>
@@ -205,6 +244,7 @@ export default function BrowseScreen() {
               </Text>
             ) : null}
           </View>
+
           <FilterButton onPress={() => router.push('/preferences/filtering')} />
         </View>
 
@@ -272,10 +312,27 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    gap: 12,
+  },
+  profileAvatarButton: {
+    width: PROFILE_AVATAR_SIZE,
+    height: PROFILE_AVATAR_SIZE,
+    borderRadius: PROFILE_AVATAR_SIZE / 2,
+    borderWidth: 2,
+    overflow: 'hidden',
+  },
+  profileAvatarPressed: {
+    opacity: 0.85,
+  },
+  profileAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 32,
