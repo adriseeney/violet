@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -19,8 +20,18 @@ import { User } from '@/types/user';
 import { useLocationContext } from '@/contexts/location-context';
 import { getNearbyProfiles, INearbyProfile, updateCurrentUserLocation } from '@/services/users';
 
+const GRID_COLUMNS = 3;
+const GRID_PADDING = 16;
+const GRID_GAP = 8;
+const CARD_FOOTER_HEIGHT = 44;
+
 export default function BrowseScreen() {
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.floor(
+    (screenWidth - GRID_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS,
+  );
+  const cardHeight = cardWidth + CARD_FOOTER_HEIGHT;
   const {
     coords,
     isLoading: locationLoading,
@@ -113,6 +124,8 @@ export default function BrowseScreen() {
 
   const renderItem = ({ item }: { item: User }) => (
     <UserCard
+      width={cardWidth}
+      height={cardHeight}
       user={{
         id: item.id,
         profilePicture: item.profilePicture || 'https://via.placeholder.com/300x300?text=User',
@@ -210,7 +223,7 @@ export default function BrowseScreen() {
             data={users}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
-            numColumns={3}
+            numColumns={GRID_COLUMNS}
             columnWrapperStyle={styles.row}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
@@ -274,11 +287,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   list: {
-    padding: 8,
+    paddingHorizontal: GRID_PADDING,
+    paddingBottom: GRID_PADDING,
   },
   row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    gap: GRID_GAP,
+    marginBottom: GRID_GAP,
   },
   loadingContainer: {
     flex: 1,

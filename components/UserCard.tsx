@@ -20,10 +20,14 @@ interface UserCardProps {
     distance?: number | null;
     username: string;
   };
+  width: number;
+  height: number;
   onPress?: () => void;
 }
 
-export default function UserCard({ user, onPress }: UserCardProps) {
+const FOOTER_HEIGHT = 44;
+
+export default function UserCard({ user, width, height, onPress }: UserCardProps) {
   const { colors } = useTheme();
   const [isPressed, setIsPressed] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -89,7 +93,7 @@ export default function UserCard({ user, onPress }: UserCardProps) {
     <Pressable
       style={[
         styles.card,
-        { backgroundColor: colors.cardBackground },
+        { backgroundColor: colors.cardBackground, width, height },
         isPressed && styles.cardPressed
       ]}
       onPress={handlePress}
@@ -97,7 +101,7 @@ export default function UserCard({ user, onPress }: UserCardProps) {
       onPressOut={() => setIsPressed(false)}
     >
       {/* IMAGE */}
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { height: height - FOOTER_HEIGHT }]}>
         <Image
           source={{ uri: user.profilePicture }}
           style={styles.image}
@@ -153,8 +157,8 @@ export default function UserCard({ user, onPress }: UserCardProps) {
       </View>
 
       {/* FOOTER*/}
-      <View style={[styles.footer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.name, { color: colors.text }]}>
+      <View style={[styles.footer, { backgroundColor: colors.background, height: FOOTER_HEIGHT }]}>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
           {user.username}
         </Text>
 
@@ -170,8 +174,6 @@ export default function UserCard({ user, onPress }: UserCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
-    margin: 6,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -181,10 +183,11 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
+    width: '100%',
   },
   image: {
     width: '100%',
-    height: 120, // ← your compact grid style
+    height: '100%',
   },
 
   optionsButton: {
@@ -223,7 +226,9 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    padding: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    justifyContent: 'center',
   },
 
   name: {
